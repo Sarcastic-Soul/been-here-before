@@ -275,3 +275,7 @@ No CoinMarketCap data is in this repository. Raw responses stay in `data/`, whic
 - A base rate from the past does not predict any single coin.
 
 Data provided by [CoinMarketCap.com](https://coinmarketcap.com). Not financial advice.
+
+## License
+
+The code is under the [MIT License](LICENSE). CoinMarketCap data is not in this repository and stays under CoinMarketCap's terms.
