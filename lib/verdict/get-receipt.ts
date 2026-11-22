@@ -5,7 +5,7 @@ import { cacheLife, cacheTag } from "next/cache";
 
 import { db } from "@/lib/db/client";
 
-import type { Receipt } from "./types";
+import type { MarketReceipt, Receipt } from "./types";
 
 /**
  * The raw listings/latest row behind today's numbers for one coin. Read from the
@@ -42,5 +42,35 @@ export async function getReceipt(coinId: number): Promise<Receipt | null> {
     creditCount: receipt.credit_count,
     status: receipt.status,
     row: receipt.row,
+  };
+}
+
+/** The daily global-metrics/quotes/latest call behind today's market phase. */
+export async function getMarketReceipt(): Promise<MarketReceipt | null> {
+  "use cache: remote";
+  cacheLife("days");
+  cacheTag("daily");
+
+  const result = await db().execute<{
+    endpoint: string;
+    request_url: string;
+    fetched_at: string;
+    http_status: number;
+    credit_count: number | null;
+    data: Record<string, unknown> | null;
+  }>(sql`
+    SELECT endpoint, request_url, fetched_at, http_status, credit_count,
+      body->'data' AS data
+    FROM cmc_receipts
+    WHERE kind = 'global_metrics_latest'`);
+  const receipt = result.rows[0];
+  if (!receipt) return null;
+  return {
+    endpoint: receipt.endpoint,
+    requestUrl: receipt.request_url,
+    fetchedAt: new Date(receipt.fetched_at).toISOString(),
+    httpStatus: receipt.http_status,
+    creditCount: receipt.credit_count,
+    data: receipt.data,
   };
 }

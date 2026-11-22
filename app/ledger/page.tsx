@@ -16,6 +16,9 @@ export const metadata: Metadata = {
     "Every day Been Here Before writes down its verdict for the top 100 coins and chains the day's hash to the one before, so the calls can be checked in 2 years and cannot be quietly changed.",
 };
 
+const ANCHORS_URL =
+  "https://github.com/Sarcastic-Soul/been-here-before/blob/ledger-anchors/anchors.txt";
+
 const ORDER = [
   "rotate",
   "hold",
@@ -56,6 +59,15 @@ export default function LedgerPage() {
             previous root, the date and that hash. The first day starts from the
             word &ldquo;genesis&rdquo;. Save a root today and you can prove
             later that nothing before it moved.
+          </p>
+          <p className="mb-4">
+            You do not have to trust this site for that. Each night a GitHub
+            Action copies the new root to the public{" "}
+            <a href={ANCHORS_URL} className="link text-ink">
+              ledger-anchors
+            </a>{" "}
+            branch, and fails if any root already there has changed. The commit
+            history gives each root a date the site cannot edit.
           </p>
           <LedgerVerify />
         </div>

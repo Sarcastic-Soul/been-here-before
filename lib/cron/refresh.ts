@@ -14,6 +14,13 @@ import {
 /** Enough raw ranks to cover adjusted rank 1000 after stablecoins and wrappers. */
 export const LISTING_LIMIT = 2000;
 const ENDPOINT = "/v1/cryptocurrency/listings/latest";
+const GLOBAL_ENDPOINT = "/v1/global-metrics/quotes/latest";
+
+interface RawGlobal {
+  btc_dominance?: number | null;
+  last_updated?: string | null;
+  quote?: { USD?: { total_market_cap?: number | null } };
+}
 
 interface RawListing {
   id: number;
@@ -49,6 +56,47 @@ async function logCall(
     "INSERT INTO credit_log (endpoint, credits, http_status) VALUES ($1, $2, $3)",
     [receipt.endpoint, receipt.creditCount, receipt.httpStatus],
   );
+}
+
+/**
+ * Today's whole market: one global-metrics/quotes/latest call (1 credit),
+ * stored as a receipt. Pages read today's market phase from it.
+ */
+export async function refreshGlobalMetrics(
+  sql: NeonQueryFunction<false, false>,
+) {
+  let result;
+  try {
+    result = await cmcGet<RawGlobal>(GLOBAL_ENDPOINT, { convert: "USD" });
+  } catch (error) {
+    if (error instanceof CmcError) await logCall(sql, error.receipt);
+    throw error;
+  }
+  const { data, body, receipt } = result;
+  await logCall(sql, receipt);
+  const cap = data.quote?.USD?.total_market_cap;
+  if (typeof cap !== "number" || !(cap > 0))
+    throw new Error("global-metrics answer has no total market cap");
+  await sql.query(
+    `INSERT INTO cmc_receipts (kind, endpoint, request_url, fetched_at, http_status, credit_count, body)
+     VALUES ('global_metrics_latest', $1, $2, $3, $4, $5, $6)
+     ON CONFLICT (kind) DO UPDATE SET endpoint = excluded.endpoint, request_url = excluded.request_url,
+       fetched_at = excluded.fetched_at, http_status = excluded.http_status,
+       credit_count = excluded.credit_count, body = excluded.body`,
+    [
+      receipt.endpoint,
+      receipt.requestUrl,
+      receipt.fetchedAt,
+      receipt.httpStatus,
+      receipt.creditCount,
+      JSON.stringify(body),
+    ],
+  );
+  return {
+    totalMarketCap: cap,
+    btcDominance: data.btc_dominance ?? null,
+    credits: receipt.creditCount,
+  };
 }
 
 /**
@@ -258,8 +306,15 @@ export async function refreshCurrentState() {
     ),
   ]);
 
+  // The market call is extra: if it fails, today's coin numbers still stand
+  // and pages fall back to the last weekly market snapshot.
+  const market = await refreshGlobalMetrics(sql).catch((error: unknown) => ({
+    error: error instanceof Error ? error.message : String(error),
+  }));
+
   return {
     asOf: asOf.toISOString(),
+    market,
     listed: rows.length,
     excluded,
     states: states.length,

@@ -26,7 +26,8 @@
     "data:build": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/build-panel.ts && tsx --env-file-if-exists=.env.local --conditions=react-server scripts/load.ts",
     "data:calibrate": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/calibrate.ts",
     "data:precompute": "tsx scripts/precompute.ts",
-    "data:prewarm": "tsx --env-file-if-exists=.env.local scripts/prewarm.ts"
+    "data:prewarm": "tsx --env-file-if-exists=.env.local scripts/prewarm.ts",
+    "data:market": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/refresh-market.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "1.2.1",

@@ -38,7 +38,7 @@ It is a base rate, not a forecast and not financial advice.
 
 - **The answer:** a plain heading, the count, the 95% range, and a dot for every past episode. Hover, tap or arrow-key through the dots for each coin and its result.
 - **The five closest twins:** their price against BTC over the 2 years after they stood where this coin stands. Click a ringed dot to pick out its line.
-- **Splits that test the number:** by halving cycle, by market phase in the start week (today's phase is marked), and what the winners had that the others did not (volume, time since peak, and more).
+- **Splits that test the number:** by halving cycle, by market phase in the start week (today's phase, from a daily `global-metrics/quotes/latest` call, is marked), and what the winners had that the others did not (volume, time since peak, and more).
 - **Survivorship, measured:** the rate if only coins alive today were counted, next to the real one.
 - **Every episode** in a table, and a **Receipts** drawer with the CoinMarketCap call behind today's state.
 - **Copy link:** each page unfurls into a card that shows the verdict.
@@ -48,7 +48,7 @@ It is a base rate, not a forecast and not financial advice.
 
 - **[Time machine](https://been-here-before.vercel.app/then):** what the app would have said for any coin on any past Sunday, using only history known then, next to what really happened. Includes LUNA five weeks before the collapse, FTT a month before FTX failed, and BitConnect, with the misses counted too.
 - **[Walk-forward test](https://been-here-before.vercel.app/method#calibration):** the same replay for every coin ranked 2–1,000, every quarter since 2018. See [the honest result](#does-it-work-the-honest-result).
-- **[Prediction ledger](https://been-here-before.vercel.app/ledger):** every day, the verdicts for the top 100 coins are written to a hash chain that the page re-checks in the browser. They get scored when they turn 2 years old, from 19 Nov 2028.
+- **[Prediction ledger](https://been-here-before.vercel.app/ledger):** every day, the verdicts for the top 100 coins are written to a hash chain that the page re-checks in the browser. They get scored when they turn 2 years old, from 19 Nov 2028. A nightly GitHub Action copies each day's root to the public [`ledger-anchors`](https://github.com/Sarcastic-Soul/been-here-before/blob/ledger-anchors/anchors.txt) branch and fails if an old root ever changes, so the dates do not depend on trusting the site.
 - **[MCP server and JSON API](#this-apps-own-api)** so agents can ask the same question, plus [`llms.txt`](https://been-here-before.vercel.app/llms.txt) and an [OpenAPI file](https://been-here-before.vercel.app/openapi.json).
 
 ## The rules
@@ -103,10 +103,11 @@ The method page shows the reliability chart, the split by year and by rank group
 | `/v1/cryptocurrency/listings/historical` | `scripts/pull-history.ts`                          | One top-5,000 snapshot per Sunday since 28 Apr 2013 (708 snapshots, 2,010,527 rows). This is the whole history behind every verdict. | 1 per 100 coins; 20,306 for the full pull |
 | `/v1/cryptocurrency/listings/latest`     | `/api/cron/refresh` (Vercel Cron, daily 01:00 UTC) | Today's rank, price and market cap for the top 2,000                                                                                 | 8 per call                                |
 | `/v1/global-metrics/quotes/historical`   | `scripts/pull-global.ts`                           | Weekly total market cap and BTC dominance for the market phase                                                                       | 8 for 708 weeks                           |
+| `/v1/global-metrics/quotes/latest`       | `/api/cron/refresh` (same daily run)               | Today's total market cap and BTC dominance, so the page can mark today's market phase                                                | 1 per call                                |
 | `/v1/cryptocurrency/map`                 | `scripts/pull-map.ts`                              | Status of every coin id (active, inactive, untracked)                                                                                | 0                                         |
 | `/v1/key/info`                           | `scripts/probe.ts`                                 | Plan and credit check before the pull                                                                                                | 0                                         |
 
-Total so far: about 20,400 credits for the one-time history, then 8 credits a day. The plan during the event allows 450,000 credits a month.
+Total so far: about 20,400 credits for the one-time history, then 9 credits a day. The plan during the event allows 450,000 credits a month.
 
 **Page views never call CoinMarketCap.** Only the daily cron route and the scripts in `scripts/` do. The API key is read in one file (`lib/cmc/client.ts`, server only), sent only as a header, and never stored with a receipt.
 
@@ -230,9 +231,9 @@ If the database cannot be reached, the 30 coins in `public/precomputed/` (saved 
 scripts/ (run once)                         app (Vercel)
   pull-history  -> data/raw/  (gitignored)    /coin/[slug], /then  -> lib/verdict -> Neon Postgres
   pull-map, pull-global                       /api/*               -> lib/verdict -> Neon Postgres
-  build-panel   -> features, outcomes         /api/cron/refresh  (01:00 UTC) -> CMC listings/latest -> Neon
+  build-panel   -> features, outcomes         /api/cron/refresh  (01:00 UTC) -> CMC listings/latest + global-metrics/latest -> Neon
   load          -> Neon Postgres              /api/cron/prewarm  (01:15 UTC) -> warm caches, write ledger day
-  calibrate     -> walk-forward result
+  calibrate     -> walk-forward result        GitHub Action      (02:00 UTC) -> ledger root -> ledger-anchors branch
 ```
 
 - **Panel:** 708 weekly snapshots, 1,310,031 coin-weeks, 7,988 coins, 5,096 of which are no longer in the top 5,000.

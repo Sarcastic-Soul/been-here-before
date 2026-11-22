@@ -100,6 +100,11 @@ export interface MarketToday {
   btcDominance: number | null;
   /** Total market cap below its peak so far, 0 to 1. */
   marketDrawdown: number | null;
+  /**
+   * When the numbers come from today's global-metrics/quotes/latest call
+   * rather than a weekly snapshot: the time of that call. `week` is then its day.
+   */
+  fetchedAt?: string;
 }
 
 export interface Evidence {
@@ -169,4 +174,14 @@ export interface Receipt {
   status: Record<string, unknown> | null;
   /** This coin's row, exactly as CMC returned it. Null when the coin was not in the call. */
   row: Record<string, unknown> | null;
+}
+
+export interface MarketReceipt {
+  endpoint: string;
+  requestUrl: string;
+  fetchedAt: string;
+  httpStatus: number;
+  creditCount: number | null;
+  /** The `data` block of that response, exactly as CMC returned it. */
+  data: Record<string, unknown> | null;
 }

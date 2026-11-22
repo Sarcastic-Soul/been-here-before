@@ -1,0 +1,64 @@
+name: Ledger anchor
+
+# Copies each day's prediction ledger root from the live site to the public
+# `ledger-anchors` branch, after the 01:00 refresh and the 01:15 prewarm that
+# writes the day. Fails if a root that is already anchored has changed on the
+# site, so an edit to old predictions cannot go unnoticed.
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ledger-anchor
+  cancel-in-progress: false
+
+env:
+  SITE: https://been-here-before.vercel.app
+
+jobs:
+  anchor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ledger-anchors
+
+      - name: Check old roots and anchor new days
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 3 --retry-delay 30 "$SITE/api/ledger" > "$RUNNER_TEMP/ledger.json"
+          jq -r '.days | sort_by(.day) | .[] | "\(.day) \(.count) \(.root)"' \
+            "$RUNNER_TEMP/ledger.json" > "$RUNNER_TEMP/live.txt"
+
+          # Every anchored day must still have the same root on the site.
+          (grep -v '^#' anchors.txt || true) > "$RUNNER_TEMP/anchored.txt"
+          while read -r day count root; do
+            live=$(awk -v d="$day" '$1 == d { print $3 }' "$RUNNER_TEMP/live.txt")
+            if [ -z "$live" ]; then
+              echo "::error::$day is anchored but the site no longer lists it"
+              exit 1
+            fi
+            if [ "$live" != "$root" ]; then
+              echo "::error::$day root changed: anchored $root, site now says $live"
+              exit 1
+            fi
+          done < "$RUNNER_TEMP/anchored.txt"
+
+          awk 'NR == FNR { seen[$1] = 1; next } !($1 in seen)' \
+            "$RUNNER_TEMP/anchored.txt" "$RUNNER_TEMP/live.txt" > "$RUNNER_TEMP/new.txt"
+          if [ ! -s "$RUNNER_TEMP/new.txt" ]; then
+            echo "All $(wc -l < "$RUNNER_TEMP/anchored.txt") anchored roots match. Nothing new."
+            exit 0
+          fi
+          cat "$RUNNER_TEMP/new.txt" >> anchors.txt
+          cat "$RUNNER_TEMP/new.txt"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add anchors.txt
+          git commit -q -m "Anchor ledger $(awk '{ print $1 }' "$RUNNER_TEMP/new.txt" | paste -sd, -)"
+          git push -q origin HEAD:ledger-anchors

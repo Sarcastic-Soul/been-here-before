@@ -15,7 +15,7 @@ import { ReceiptDrawer } from "@/components/receipt-drawer";
 import { TwinChart } from "@/components/twin-chart";
 import { VerdictSummary } from "@/components/verdict-summary";
 import { hasWinnerSplit, WinnersTable } from "@/components/winners-table";
-import { PHASES } from "@/lib/engine/cycles";
+import { PHASES, type Phase } from "@/lib/engine/cycles";
 import { topReturnMeaningful } from "@/lib/engine/outcomes";
 import { median, type Rate } from "@/lib/engine/stats";
 import { MIN_EPISODES } from "@/lib/engine/verdict";
@@ -33,7 +33,7 @@ import {
 import { addWeeks } from "@/lib/verdict/analyze";
 import { FIRST_REPLAY_WEEK, thenHref } from "@/lib/verdict/cases";
 import { getBenchmark } from "@/lib/verdict/get-benchmark";
-import { getReceipt } from "@/lib/verdict/get-receipt";
+import { getMarketReceipt, getReceipt } from "@/lib/verdict/get-receipt";
 import { getVerdictOrSaved } from "@/lib/verdict/saved";
 import { shareMeta } from "@/lib/site";
 import { twinLineStyle } from "@/lib/twin-style";
@@ -88,8 +88,20 @@ async function CoinVerdict({ slug }: { slug: string }) {
     redirect(`/coin/${data.movedTo.slug}`);
   if (data.status !== "ok") return <Refused data={data} />;
   // A saved copy means the database is down, so do not ask it for the receipt.
-  const receipt = savedAt ? null : await getReceipt(data.coin.id);
-  return <Verdict data={data} receipt={receipt} savedAt={savedAt} />;
+  const [receipt, marketReceipt] = savedAt
+    ? [null, null]
+    : await Promise.all([
+        getReceipt(data.coin.id),
+        getMarketReceipt().catch(() => null),
+      ]);
+  return (
+    <Verdict
+      data={data}
+      receipt={receipt}
+      marketReceipt={marketReceipt}
+      savedAt={savedAt}
+    />
+  );
 }
 
 function SavedBanner({ savedAt }: { savedAt: string }) {
@@ -107,10 +119,12 @@ function SavedBanner({ savedAt }: { savedAt: string }) {
 function Verdict({
   data,
   receipt,
+  marketReceipt,
   savedAt,
 }: {
   data: VerdictOk;
   receipt: Awaited<ReturnType<typeof getReceipt>>;
+  marketReceipt: Awaited<ReturnType<typeof getMarketReceipt>>;
   savedAt: string | null;
 }) {
   const { summary, state, coin } = data;
@@ -147,6 +161,7 @@ function Verdict({
               coinName={coin.name}
               evidence={data.evidence}
               receipt={receipt}
+              marketReceipt={marketReceipt}
               saved={savedAt !== null}
               twins={data.twins.map((t) => ({
                 name: t.episode.name,
@@ -394,15 +409,23 @@ function Verdict({
   );
 }
 
+const PHASE_PHRASE: Record<Phase, string> = {
+  near_peak: "near its peak",
+  correction: "in a correction",
+  bear: "in a bear market",
+  recovery: "in a recovery",
+};
+
 /** One line on today's whole market, next to the phase split. */
 function MarketNote({ data }: { data: VerdictOk }) {
   const market = data.market;
   if (!market) return "Does the answer change with the whole market's mood?";
-  const label = PHASES.find((p) => p.phase === market.phase)?.label;
   return (
     <>
-      In the week of {longDate(market.week)} the whole market was in{" "}
-      <span className="text-ink font-medium">{label?.toLowerCase()}</span>
+      {market.fetchedAt
+        ? `On ${longDate(market.week)} the whole market is `
+        : `In the week of ${longDate(market.week)} the whole market was `}
+      <span className="text-ink font-medium">{PHASE_PHRASE[market.phase]}</span>
       {market.marketDrawdown !== null && (
         <>, {pct(market.marketDrawdown)} below its peak</>
       )}
@@ -410,6 +433,13 @@ function MarketNote({ data }: { data: VerdictOk }) {
         <>, with BTC at {pct(market.btcDominance)} of total market cap</>
       )}
       .
+      {market.fetchedAt && (
+        <>
+          {" "}
+          From today&apos;s{" "}
+          <code className="num text-[0.92em]">global-metrics</code> call.
+        </>
+      )}
     </>
   );
 }

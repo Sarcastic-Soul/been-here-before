@@ -52,11 +52,45 @@ export function marketPhases(
   let peak = 0;
   return totalMarketCap.map((cap, week) => {
     peak = Math.max(peak, cap);
-    const drawdown = peak > 0 ? 1 - cap / peak : 0;
     const yearAgo = week >= 52 ? totalMarketCap[week - 52] : null;
-    let phase: Phase =
-      drawdown < 0.2 ? "near_peak" : drawdown <= 0.5 ? "correction" : "bear";
-    if (drawdown > 0.2 && yearAgo && cap > yearAgo) phase = "recovery";
-    return { drawdown, phase };
+    return phaseOf(cap, peak, yearAgo);
   });
+}
+
+/** One point's phase, given the peak so far (including this point) and the cap a year earlier. */
+export function phaseOf(
+  cap: number,
+  peak: number,
+  yearAgo: number | null,
+): { drawdown: number; phase: Phase } {
+  const drawdown = peak > 0 ? 1 - cap / peak : 0;
+  let phase: Phase =
+    drawdown < 0.2 ? "near_peak" : drawdown <= 0.5 ? "correction" : "bear";
+  if (drawdown > 0.2 && yearAgo && cap > yearAgo) phase = "recovery";
+  return { drawdown, phase };
+}
+
+/**
+ * Today's phase from the daily global-metrics call, measured against the
+ * stored weekly history with the same rule. Weeks after today are ignored;
+ * "a year earlier" is the last weekly snapshot at least 52 weeks back.
+ */
+export function phaseToday(
+  weekly: readonly { week: string; cap: number | null }[],
+  today: { day: string; cap: number },
+): { drawdown: number; phase: Phase } {
+  const yearAgoDay = new Date(
+    Date.parse(`${today.day}T00:00:00Z`) - 364 * 86_400_000,
+  )
+    .toISOString()
+    .slice(0, 10);
+  let peak = today.cap;
+  let yearAgo: { week: string; cap: number } | null = null;
+  for (const { week, cap } of weekly) {
+    if (cap === null || week > today.day) continue;
+    peak = Math.max(peak, cap);
+    if (week <= yearAgoDay && (!yearAgo || week > yearAgo.week))
+      yearAgo = { week, cap };
+  }
+  return phaseOf(today.cap, peak, yearAgo?.cap ?? null);
 }

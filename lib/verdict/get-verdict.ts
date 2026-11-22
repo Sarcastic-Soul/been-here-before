@@ -21,7 +21,7 @@ import { cacheLife, cacheTag } from "next/cache";
 
 import { db } from "@/lib/db/client";
 import { coins, coinWeeks, currentState, marketWeeks } from "@/lib/db/schema";
-import type { Phase } from "@/lib/engine/cycles";
+import { phaseToday, type Phase } from "@/lib/engine/cycles";
 import { BAND_STEPS, type BandStep, type MatchState } from "@/lib/engine/match";
 import { MIN_EPISODES } from "@/lib/engine/verdict";
 import { monthYear } from "@/lib/format";
@@ -97,6 +97,45 @@ export async function marketInfo(): Promise<{
     byWeek: new Map(markets.map((m) => [m.week, m])),
     phases: new Map(markets.map((m) => [m.week, m.phase])),
     latest: markets.at(-1) ?? null,
+  };
+}
+
+/**
+ * Today's whole market from the cron's daily global-metrics call, measured
+ * against the weekly history with the same phase rule. Null before the first
+ * call; the page then shows the last weekly snapshot instead.
+ */
+export async function marketNow(): Promise<MarketToday | null> {
+  "use cache: remote";
+  cacheLife("days");
+  cacheTag("daily");
+  const result = await db().execute<{
+    fetched_at: string;
+    cap: number | string | null;
+    dominance: number | string | null;
+  }>(sql`
+    SELECT fetched_at,
+      (body->'data'->'quote'->'USD'->>'total_market_cap')::float8 AS cap,
+      (body->'data'->>'btc_dominance')::float8 AS dominance
+    FROM cmc_receipts
+    WHERE kind = 'global_metrics_latest'`);
+  const row = result.rows[0];
+  const cap =
+    row?.cap === null || row?.cap === undefined ? NaN : Number(row.cap);
+  if (!row || !(cap > 0)) return null;
+  const weekly = await db()
+    .select({ week: marketWeeks.week, cap: marketWeeks.totalMarketCapUsd })
+    .from(marketWeeks);
+  const fetchedAt = new Date(row.fetched_at).toISOString();
+  const day = fetchedAt.slice(0, 10);
+  const { drawdown, phase } = phaseToday(weekly, { day, cap });
+  return {
+    week: day,
+    phase,
+    marketDrawdown: drawdown,
+    // CMC gives dominance in percent; the API uses 0 to 1.
+    btcDominance: row.dominance === null ? null : Number(row.dominance) / 100,
+    fetchedAt,
   };
 }
 
@@ -355,11 +394,14 @@ export async function getVerdict(slug: string): Promise<VerdictResponse> {
     drawdown: state.drawdown,
     ageWeeks: state.ageWeeks,
   };
-  const { analysis, twins, btc, market } = await matchCoin(
-    coin.lineageId,
-    target,
-    { maxWeek: null, survivors: true },
-  );
+  const [{ analysis, twins, btc, market }, today] = await Promise.all([
+    matchCoin(coin.lineageId, target, { maxWeek: null, survivors: true }),
+    marketNow().catch((error: unknown) => {
+      console.error("today's market failed", error);
+      return null;
+    }),
+  ]);
+  const marketShown = today ?? market.latest;
 
   const weeks = [...btc.keys()].sort();
   const lastWeek = weeks[weeks.length - 1];
@@ -379,7 +421,7 @@ export async function getVerdict(slug: string): Promise<VerdictResponse> {
       ageWeeks: state.ageWeeks,
     },
     ...analysis,
-    ...(market.latest ? { market: market.latest } : {}),
+    ...(marketShown ? { market: marketShown } : {}),
     twins,
     evidence: {
       historyEndpoint: "/v1/cryptocurrency/listings/historical",

@@ -28,6 +28,7 @@ pnpm dev | pnpm build | pnpm start
 pnpm lint && pnpm typecheck && pnpm test   # run all three plus build before calling work done
 pnpm test:e2e                              # Playwright smoke; starts its own server on port 3200
 pnpm data:prewarm                          # fill the shared cache on the live site after a deploy
+pnpm data:market                           # one global-metrics/quotes/latest call (1 credit), as the cron does
 ```
 
 ## Gotchas

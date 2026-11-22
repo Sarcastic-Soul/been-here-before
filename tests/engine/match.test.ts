@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { cycleOf, marketPhases } from "@/lib/engine/cycles";
+import { cycleOf, marketPhases, phaseToday } from "@/lib/engine/cycles";
 import {
   ageBucket,
   BAND_STEPS,
@@ -118,6 +118,30 @@ describe("cycles and phases", () => {
     expect(phases[2].phase).toBe("correction");
     expect(phases[3].phase).toBe("bear");
     expect(phases[caps.length - 1].phase).toBe("recovery");
+  });
+
+  it("measures today against the weekly peak and the cap a year back", () => {
+    const weekly = [
+      { week: "2025-01-05", cap: 100 },
+      { week: "2025-11-16", cap: 50 },
+      { week: "2025-11-23", cap: 40 },
+      { week: "2026-11-15", cap: 60 },
+      { week: "2026-11-29", cap: 500 }, // after today: ignored
+      { week: "2026-01-04", cap: null },
+    ];
+    // Peak 100, so 30% down; a year back (on or before 2025-11-23) the cap was 40.
+    const today = phaseToday(weekly, { day: "2026-11-22", cap: 70 });
+    expect(today.drawdown).toBeCloseTo(0.3);
+    expect(today.phase).toBe("recovery");
+    // A new high today counts as the peak.
+    expect(phaseToday(weekly, { day: "2026-11-22", cap: 120 })).toEqual({
+      drawdown: 0,
+      phase: "near_peak",
+    });
+    // 65% down and below the year-ago cap: bear.
+    expect(phaseToday(weekly, { day: "2026-11-22", cap: 35 }).phase).toBe(
+      "bear",
+    );
   });
 });
 

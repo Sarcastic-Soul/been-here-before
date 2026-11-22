@@ -4,7 +4,7 @@ import { Receipt as ReceiptIcon, X } from "@phosphor-icons/react";
 import { useRef } from "react";
 
 import { longDate } from "@/lib/format";
-import type { Evidence, Receipt } from "@/lib/verdict/types";
+import type { Evidence, MarketReceipt, Receipt } from "@/lib/verdict/types";
 
 const HISTORY_LIMIT = 5000;
 
@@ -26,6 +26,7 @@ export function ReceiptDrawer({
   coinName,
   evidence,
   receipt,
+  marketReceipt = null,
   saved = false,
   twins,
 }: {
@@ -33,6 +34,8 @@ export function ReceiptDrawer({
   coinName: string;
   evidence: Evidence;
   receipt: Receipt | null;
+  /** The daily global-metrics call behind today's market phase. */
+  marketReceipt?: MarketReceipt | null;
   /** True when the page shows a saved copy because the database did not answer. */
   saved?: boolean;
   twins: ReceiptTwin[];
@@ -76,9 +79,10 @@ export function ReceiptDrawer({
           <div className="flex-1 space-y-8 overflow-y-auto px-5 py-6 text-sm sm:px-7">
             <p className="text-ink-body">
               Pages never call CoinMarketCap. One cron job calls{" "}
-              <code className="num">listings/latest</code> once a day; the
-              weekly history was pulled once and stored. These are the calls
-              behind this page.
+              <code className="num">listings/latest</code> and{" "}
+              <code className="num">global-metrics/quotes/latest</code> once a
+              day; the weekly history was pulled once and stored. These are the
+              calls behind this page.
             </p>
 
             <section>
@@ -128,6 +132,37 @@ export function ReceiptDrawer({
                 </p>
               )}
             </section>
+
+            {marketReceipt && (
+              <section>
+                <h3 className="label mb-2">Today’s market</h3>
+                <p className="num bg-paper-raised mb-3 rounded-[2px] px-3 py-2 text-xs break-all">
+                  GET {marketReceipt.requestUrl}
+                </p>
+                <dl className="mb-3 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1">
+                  <dt className="text-muted">Fetched</dt>
+                  <dd className="num">
+                    {new Date(marketReceipt.fetchedAt).toUTCString()}
+                  </dd>
+                  <dt className="text-muted">HTTP status</dt>
+                  <dd className="num">{marketReceipt.httpStatus}</dd>
+                  <dt className="text-muted">Credits used</dt>
+                  <dd className="num">
+                    {marketReceipt.creditCount ?? "not reported"}
+                  </dd>
+                </dl>
+                <p className="text-muted mb-2">
+                  The <code className="num">data</code> block, exactly as
+                  CoinMarketCap returned it. Today’s market phase uses{" "}
+                  <code className="num">quote.USD.total_market_cap</code>{" "}
+                  against the weekly history; the BTC share is{" "}
+                  <code className="num">btc_dominance</code>.
+                </p>
+                <pre className="num border-rule bg-paper-raised max-h-[240px] overflow-auto border p-3 text-[11px] leading-relaxed">
+                  {JSON.stringify(marketReceipt.data, null, 2)}
+                </pre>
+              </section>
+            )}
 
             <section>
               <h3 className="label mb-2">Past episodes</h3>

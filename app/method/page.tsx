@@ -130,8 +130,13 @@ export default function MethodPage() {
                 <code className="num text-[15px]">
                   /v1/cryptocurrency/listings/latest
                 </code>
-                . Pages never call CoinMarketCap; every coin page has a Receipts
-                drawer with the raw row.
+                , and today’s market phase from one daily call to{" "}
+                <code className="num text-[15px]">
+                  /v1/global-metrics/quotes/latest
+                </code>
+                , measured against the weekly history with the same rule. Pages
+                never call CoinMarketCap; every coin page has a Receipts drawer
+                with the raw rows.
               </li>
             </ul>
           </section>
