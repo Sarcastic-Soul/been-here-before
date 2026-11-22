@@ -14,7 +14,7 @@ Type a coin. See every past coin that stood in the same spot, and how it ended u
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
 | 1. Public GitHub repository                            | This repository                                                                                                    |
 | 2. Working demo                                        | https://been-here-before.vercel.app and the 2-minute demo video https://youtu.be/rO22CuzqARI                       |
-| 3. X post with #BuildwithCMC                           | Linked from the BUIDL page                                                                                         |
+| 3. X post with #BuildwithCMC                           | https://x.com/Anish_Is_Busy/status/2124575978265653278 (BUIDL: https://dorahacks.io/build/51651)                   |
 | 4. CMC API endpoints used, named                       | [CoinMarketCap endpoints used](#coinmarketcap-endpoints-used)                                                      |
 | 5. Evidence of a real API call: code and response      | [Evidence of a real API call](#evidence-of-a-real-api-call), and the **Receipts** drawer on every coin page        |
 | 6. What the API made possible, where it got in the way | [What the API made possible, and where it got in the way](#what-the-api-made-possible-and-where-it-got-in-the-way) |
