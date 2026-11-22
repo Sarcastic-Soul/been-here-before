@@ -48,8 +48,11 @@ jobs:
             fi
           done < "$RUNNER_TEMP/anchored.txt"
 
-          awk 'NR == FNR { seen[$1] = 1; next } !($1 in seen)' \
-            "$RUNNER_TEMP/anchored.txt" "$RUNNER_TEMP/live.txt" > "$RUNNER_TEMP/new.txt"
+          # Days on the site that are not anchored yet.
+          cut -d ' ' -f 1 "$RUNNER_TEMP/anchored.txt" > "$RUNNER_TEMP/known.txt"
+          while read -r day count root; do
+            grep -qxF "$day" "$RUNNER_TEMP/known.txt" || echo "$day $count $root"
+          done < "$RUNNER_TEMP/live.txt" > "$RUNNER_TEMP/new.txt"
           if [ ! -s "$RUNNER_TEMP/new.txt" ]; then
             echo "All $(wc -l < "$RUNNER_TEMP/anchored.txt") anchored roots match. Nothing new."
             exit 0
