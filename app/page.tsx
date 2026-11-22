@@ -7,7 +7,7 @@ import { CoinSearch } from "@/components/coin-search";
 import { TwinChart } from "@/components/twin-chart";
 import { VerdictSummary } from "@/components/verdict-summary";
 import { getCalibration } from "@/lib/calibration/get-calibration";
-import { count, monthYear, pct } from "@/lib/format";
+import { count, monthYear, pct, signedPct } from "@/lib/format";
 import { FAMOUS_CASES, thenHref } from "@/lib/verdict/cases";
 import { getPanelStats } from "@/lib/verdict/get-stats";
 import { getVerdictOrSaved } from "@/lib/verdict/saved";
@@ -27,7 +27,7 @@ export default function Home() {
   return (
     <>
       <div className="mx-auto grid max-w-[1360px] gap-12 px-4 pt-10 pb-16 sm:px-8 lg:grid-cols-[1.05fr_1fr] lg:grid-rows-[auto_1fr] lg:gap-x-16 lg:gap-y-14 lg:px-12 lg:pt-14 lg:pb-20">
-        <section aria-labelledby="hero-title" className="rise">
+        <section aria-labelledby="hero-title" className="rise relative z-10">
           <h1
             id="hero-title"
             className="mb-7 font-serif text-[clamp(44px,5.6vw,84px)] leading-[0.98] font-normal tracking-[-0.025em]"
@@ -242,31 +242,73 @@ async function CalibrationStrip() {
   await connection();
   const calibration = await getCalibration();
   if (!calibration) return null;
-  const rotate = calibration.verdicts.rotate;
-  const lagged = rotate ? 1 - rotate.beat / rotate.n : null;
+  const share = (v?: { n: number; beat: number }) =>
+    v && v.n > 0 ? v.beat / v.n : null;
+  const all = Object.values(calibration.verdicts).reduce(
+    (sum, v) => ({ n: sum.n + v.n, beat: sum.beat + v.beat }),
+    { n: 0, beat: 0 },
+  );
+  const rows = [
+    {
+      label: "when it said “rotate to BTC”",
+      value: share(calibration.verdicts.rotate),
+    },
+    {
+      label: "when it said “no clear edge”",
+      value: share(calibration.verdicts.no_clear_edge),
+    },
+    { label: "all coins it was asked about", value: share(all) },
+  ].filter(
+    (row): row is { label: string; value: number } => row.value !== null,
+  );
   const gain = 1 - calibration.brier / calibration.brierBaseline;
+  const interval = calibration.detail?.gainInterval;
+  const ranks = calibration.detail?.byBand ? "2 to 1,000" : "20 to 500";
   return (
-    <div className="grid gap-8 lg:grid-cols-[auto_1fr] lg:items-end lg:gap-16">
-      <p className="text-accent m-0 font-serif text-[clamp(80px,10vw,140px)] leading-[0.8]">
-        {lagged === null ? "n/a" : pct(lagged)}
-      </p>
-      <div className="max-w-[44em]">
+    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-end lg:gap-16">
+      <div>
         <h2
           id="honest-title"
           className="mb-3 font-serif text-[28px] leading-tight"
         >
           We tested it on the past, using only what was known at the time.
         </h2>
-        <p className="text-paper/80 text-[16px]">
-          Every quarter from 2018, for every coin ranked 20 to 500, the tool
-          gave its answer from earlier data only. When it said “rotate to BTC”,{" "}
-          {lagged === null ? "" : pct(lagged)} of those coins did lag BTC over
-          the next two years. The honest part: it says “rotate” most of the
-          time, and it beats a plain base rate by only {pct(gain)}.{" "}
+        <p className="text-paper/80 max-w-[34em] text-[16px]">
+          Every quarter from 2018, for every coin ranked {ranks}, the tool gave
+          its answer from earlier data only. Then we checked which coins beat
+          BTC over the next two years. The answer sorts coins, but only a
+          little: its forecasts beat a plain base rate by {pct(gain, 1)}
+          {interval && interval.lo <= 0 && (
+            <>
+              , and the 95% range of that gain ({signedPct(interval.lo, 1)} to{" "}
+              {signedPct(interval.hi, 1)}) still includes zero
+            </>
+          )}
+          . Most of the time it says “rotate”, because most coins lose to BTC.{" "}
           <Link href="/method#calibration" className="link text-paper">
             See the full test
           </Link>
         </p>
+      </div>
+      <div>
+        <p className="text-paper/70 m-0 pb-2 text-[13px]">
+          Share that went on to beat BTC over 2 years
+        </p>
+        <dl className="border-paper/30 m-0 border-t">
+          {rows.map((row, i) => (
+            <div
+              key={row.label}
+              className="border-paper/20 flex flex-row-reverse items-baseline justify-end gap-5 border-b py-3"
+            >
+              <dt className="text-paper/85 text-[16px]">{row.label}</dt>
+              <dd
+                className={`m-0 w-[2.15em] shrink-0 font-serif text-[clamp(44px,5vw,64px)] leading-[0.9] tabular-nums ${i === 1 ? "text-accent" : ""}`}
+              >
+                {pct(row.value)}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 
 import { getCalibration } from "@/lib/calibration/get-calibration";
+import { DAILY } from "@/lib/api/cache";
 
 /** GET /api/calibration. Walk-forward test of the verdicts, 2018 onward. */
 export async function GET() {
@@ -12,5 +13,5 @@ export async function GET() {
       { error: "calibration has not run yet" },
       { status: 503 },
     );
-  return Response.json(calibration);
+  return Response.json(calibration, { headers: DAILY });
 }

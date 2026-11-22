@@ -206,3 +206,12 @@ dialog.drawer::backdrop {
     }
   }
 }
+
+/* Keyboard focus on an episode dot: a square ring around its hit area. */
+.dot {
+  outline: none;
+}
+.dot:focus-visible > rect {
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}

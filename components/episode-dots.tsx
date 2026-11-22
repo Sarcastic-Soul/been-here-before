@@ -53,7 +53,10 @@ export function EpisodeDots({
       ORDER[outcomeOf(a)] - ORDER[outcomeOf(b)] || a.week.localeCompare(b.week),
   );
   const n = sorted.length;
-  const cols = n <= 100 ? 17 : n <= 240 ? 24 : 30;
+  // Spread the dots over even rows, so 18 dots make two rows of 9 rather
+  // than a full row and one dot alone.
+  const widest = n <= 100 ? 17 : n <= 240 ? 24 : 30;
+  const cols = Math.max(1, Math.ceil(n / Math.ceil(n / widest)));
   const size = 16;
   const gap = 6;
   const step = size + gap;
@@ -74,8 +77,9 @@ export function EpisodeDots({
           viewBox={`-3 -3 ${width + 6} ${height + 6}`}
           width="100%"
           style={{ maxWidth: Math.min(max, width + 6) }}
-          role="img"
-          aria-label={`${n} past episodes: ${k} beat BTC over 2 years, ${n - k} did not.`}
+          role="group"
+          aria-label={`${n} past episodes: ${k} beat BTC over 2 years, ${n - k} did not. Use the arrow keys to step through them.`}
+          data-cols={cols}
           className="block"
         >
           {sorted.map((episode, i) => {
@@ -92,9 +96,13 @@ export function EpisodeDots({
             return (
               <g
                 key={key}
+                role="img"
+                aria-label={tipFor(episode, outcome)}
+                // One tab stop for the whole grid; the arrow keys move inside it.
+                tabIndex={i === 0 ? 0 : -1}
                 data-tip={tipFor(episode, outcome)}
                 data-twin={twin ? key : undefined}
-                className={twin ? "dot-in cursor-pointer" : "dot-in"}
+                className={twin ? "dot dot-in cursor-pointer" : "dot dot-in"}
                 style={{ "--d": `${Math.round(delay)}ms` } as CSSProperties}
               >
                 <rect

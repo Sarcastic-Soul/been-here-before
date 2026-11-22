@@ -5,6 +5,15 @@ export const END_TOLERANCE_WEEKS = 2;
 export const TOP_RANK = 20;
 
 /**
+ * "Back in the top 20" only means something when the past matches started
+ * outside the top 20. Matches sit within 1.5x of the coin's rank, so that holds
+ * from rank 31 down.
+ */
+export function topReturnMeaningful(rankAdj: number): boolean {
+  return rankAdj > TOP_RANK * 1.5;
+}
+
+/**
  * Forward outcomes for every point of one lineage over `horizon` weeks.
  * A coin missing from the snapshots around the end week fell out of the top
  * 5000 or stopped trading: counted as a total loss, not as missing data.

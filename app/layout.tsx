@@ -56,14 +56,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           Skip to content
         </a>
         <header className="border-ink border-b">
-          <div className="mx-auto flex max-w-[1360px] items-center justify-between gap-6 px-4 py-2 sm:px-8 lg:px-12">
+          <div className="mx-auto flex max-w-[1360px] flex-wrap items-center justify-between gap-x-6 px-4 py-2 sm:flex-nowrap sm:px-8 lg:px-12">
             <Link
               href="/"
               className="inline-flex min-h-11 items-center font-serif text-[22px] font-semibold tracking-[-0.01em]"
             >
               Been Here Before
             </Link>
-            <nav aria-label="Main" className="flex gap-4 text-sm sm:gap-5">
+            <nav
+              aria-label="Main"
+              className="-mt-1 flex w-full gap-4 text-sm sm:mt-0 sm:w-auto sm:gap-5"
+            >
               <Link
                 href="/then"
                 className="link inline-flex min-h-11 items-center"
@@ -78,13 +81,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               </Link>
               <Link
                 href="/method#calibration"
-                className="link hidden min-h-11 items-center sm:inline-flex"
+                className="link inline-flex min-h-11 items-center"
               >
                 Calibration
               </Link>
               <Link
                 href="/ledger"
-                className="link hidden min-h-11 items-center sm:inline-flex"
+                className="link inline-flex min-h-11 items-center"
               >
                 Ledger
               </Link>

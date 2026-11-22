@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { getPastVerdict, snapToSunday } from "@/lib/verdict/get-past-verdict";
+import { DAILY, LONG } from "@/lib/api/cache";
 
 const Query = z.object({
   slug: z.string().regex(/^[a-z0-9-]{1,100}$/),
@@ -34,6 +35,7 @@ export async function GET(request: Request) {
     );
     return Response.json(data, {
       status: data.status === "not_found" ? 404 : 200,
+      headers: data.status === "ok" && data.actual.complete ? LONG : DAILY,
     });
   } catch (error) {
     console.error(`past verdict for ${parsed.data.slug} failed`, error);

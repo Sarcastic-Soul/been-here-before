@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { BenchmarkPanel } from "@/components/benchmark-panel";
 import { CoinSearch } from "@/components/coin-search";
 import { CycleTable, PhaseTable } from "@/components/cycle-table";
 import { EpisodeTable } from "@/components/episode-table";
@@ -15,6 +16,7 @@ import { TwinChart } from "@/components/twin-chart";
 import { VerdictSummary } from "@/components/verdict-summary";
 import { hasWinnerSplit, WinnersTable } from "@/components/winners-table";
 import { PHASES } from "@/lib/engine/cycles";
+import { topReturnMeaningful } from "@/lib/engine/outcomes";
 import { median, type Rate } from "@/lib/engine/stats";
 import { MIN_EPISODES } from "@/lib/engine/verdict";
 import {
@@ -30,6 +32,7 @@ import {
 } from "@/lib/format";
 import { addWeeks } from "@/lib/verdict/analyze";
 import { FIRST_REPLAY_WEEK, thenHref } from "@/lib/verdict/cases";
+import { getBenchmark } from "@/lib/verdict/get-benchmark";
 import { getReceipt } from "@/lib/verdict/get-receipt";
 import { getVerdictOrSaved } from "@/lib/verdict/saved";
 import { shareMeta } from "@/lib/site";
@@ -118,7 +121,14 @@ function Verdict({
   const medianRelative = median(relatives);
   const outcomes: [string, Rate][] = [
     ["Beat BTC over 1 year", data.beatBtc1y],
-    ["Back in the top 20 within 2 years", summary.reachedTop20],
+    ...(topReturnMeaningful(state.rankAdj)
+      ? [
+          ["Back in the top 20 within 2 years", summary.reachedTop20] as [
+            string,
+            Rate,
+          ],
+        ]
+      : []),
     ["Fell out of the top 5,000 within 2 years", summary.fellOut],
   ];
 
@@ -158,6 +168,8 @@ function Verdict({
             <p className="border-ink text-ink-body border-t pt-4 text-[15px]">
               Rates are hidden below {MIN_EPISODES} episodes: with so few, one
               coin more or less swings them by tens of points.
+              {!savedAt &&
+                " Below is how often any coin at this rank has beaten BTC instead."}
             </p>
           ) : (
             <dl className="border-ink border-t">
@@ -222,6 +234,18 @@ function Verdict({
             )}
         </aside>
       </div>
+
+      {refused && !savedAt && (
+        <Section
+          id="benchmark"
+          title="How hard is BTC to beat?"
+          note="Every coin-week since 2013, not just this spot."
+        >
+          <Suspense fallback={<BenchmarkSkeleton />}>
+            <Benchmark rank={state.rankAdj} />
+          </Suspense>
+        </Section>
+      )}
 
       {data.twins.length > 0 && (
         <Section
@@ -439,9 +463,47 @@ function Refused({ data }: { data: VerdictRefused }) {
       {data.coin && data.lastSeen && (
         <ReplayLink slug={data.coin.slug} lastSeen={data.lastSeen} />
       )}
+      {data.status === "benchmark" && (
+        <section aria-labelledby="benchmark" className="mb-12">
+          <h2
+            id="benchmark"
+            className="border-ink mb-4 border-t pt-4 font-serif text-[26px] leading-tight tracking-[-0.01em]"
+          >
+            How hard is BTC to beat?
+          </h2>
+          <Suspense fallback={<BenchmarkSkeleton />}>
+            <Benchmark />
+          </Suspense>
+        </section>
+      )}
       <h2 className="label mb-3">Try another coin</h2>
       <CoinSearch size="md" />
     </article>
+  );
+}
+
+/** Share of all coin-weeks that beat BTC, by rank band. Skipped if the database fails. */
+async function Benchmark({ rank }: { rank?: number }) {
+  const data = await getBenchmark().catch((error: unknown) => {
+    console.error("benchmark failed", error);
+    return null;
+  });
+  if (!data) return null;
+  return (
+    <div className="max-w-[640px]">
+      <BenchmarkPanel data={data} rank={rank} />
+    </div>
+  );
+}
+
+function BenchmarkSkeleton() {
+  return (
+    <div aria-hidden className="max-w-[640px] space-y-3">
+      <div className="skeleton h-10 w-full" />
+      {[0, 1, 2, 3, 4].map((i) => (
+        <div key={i} className="skeleton h-12 w-full" />
+      ))}
+    </div>
   );
 }
 

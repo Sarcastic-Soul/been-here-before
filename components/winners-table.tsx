@@ -8,6 +8,8 @@ import {
 import { count, drawdownPct, pct, years } from "@/lib/format";
 import type { CoinState } from "@/lib/verdict/types";
 
+import { ScrollX } from "./scroll-x";
+
 /** Below this many winners the medians get a small-sample warning. */
 const FEW_WINNERS = 15;
 
@@ -125,7 +127,7 @@ export function WinnersTable({
           </>
         )}
       </p>
-      <div className="overflow-x-auto">
+      <ScrollX label="Winners against the rest">
         <table className="w-full min-w-[480px] border-collapse text-sm">
           <caption className="sr-only">
             Median start-week facts for episodes that beat BTC over 2 years and
@@ -196,7 +198,7 @@ export function WinnersTable({
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollX>
       <p className="text-muted mt-4 max-w-[68ch] text-[13px]">
         Medians of each group. &ldquo;Winner higher&rdquo; compares every winner
         with every other episode and counts how often the winner had the bigger

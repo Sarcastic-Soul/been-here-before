@@ -9,6 +9,7 @@ import { getCalibration } from "@/lib/calibration/get-calibration";
 import { db } from "@/lib/db/client";
 import { recordLedger, type LedgerResult } from "@/lib/ledger/write";
 import { coins, currentState } from "@/lib/db/schema";
+import { getBenchmark } from "@/lib/verdict/get-benchmark";
 import { getReceipt } from "@/lib/verdict/get-receipt";
 import { getPanelStats } from "@/lib/verdict/get-stats";
 import { getSlugIndex, getVerdict } from "@/lib/verdict/get-verdict";
@@ -65,7 +66,12 @@ export async function prewarm(): Promise<{
   ms: number;
 }> {
   const start = Date.now();
-  await Promise.all([getPanelStats(), getCalibration(), getSlugIndex()]);
+  await Promise.all([
+    getPanelStats(),
+    getCalibration(),
+    getSlugIndex(),
+    getBenchmark(),
+  ]);
   const slugs = await prewarmSlugs();
   const top: VerdictOk[] = [];
   async function warm(slug: string) {

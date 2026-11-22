@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { getLedgerDay, getLedgerDays } from "@/lib/ledger/read";
+import { DAILY } from "@/lib/api/cache";
 
 const Day = z
   .string()
@@ -19,7 +20,10 @@ export async function GET(request: Request) {
   const day = new URL(request.url).searchParams.get("day");
   try {
     if (day === null) {
-      return Response.json({ how: HOW, days: await getLedgerDays() });
+      return Response.json(
+        { how: HOW, days: await getLedgerDays() },
+        { headers: DAILY },
+      );
     }
     const parsed = Day.safeParse(day);
     if (!parsed.success)
@@ -33,7 +37,7 @@ export async function GET(request: Request) {
         { error: `No ledger entry for ${parsed.data}.` },
         { status: 404 },
       );
-    return Response.json({ how: HOW, ...data });
+    return Response.json({ how: HOW, ...data }, { headers: DAILY });
   } catch (error) {
     console.error("ledger read failed", error);
     return Response.json(

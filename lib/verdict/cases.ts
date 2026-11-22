@@ -12,8 +12,10 @@ export const FAMOUS_CASES: readonly FamousCase[] = [
   {
     slug: "terra-luna",
     week: "2022-04-03",
-    name: "Terra (LUNA)",
-    story: "Top 10 at its all-time high, five weeks before it collapsed.",
+    // CoinMarketCap now lists the old chain as Terra Classic, so the page does too.
+    name: "Terra Classic (LUNC)",
+    story:
+      "Then called Terra (LUNA): top 10 at its all-time high, five weeks before it collapsed.",
   },
   {
     slug: "ftx-token",

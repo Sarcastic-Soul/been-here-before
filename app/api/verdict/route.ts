@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { getVerdictOrSaved } from "@/lib/verdict/saved";
+import { BRIEF, DAILY } from "@/lib/api/cache";
 
 const Query = z.object({ slug: z.string().regex(/^[a-z0-9-]{1,100}$/) });
 
@@ -28,5 +29,6 @@ export async function GET(request: Request) {
   // savedAt appears only when the database was down and a saved copy was served.
   return Response.json(savedAt ? { ...data, savedAt } : data, {
     status: data.status === "not_found" ? 404 : 200,
+    headers: savedAt ? BRIEF : DAILY,
   });
 }

@@ -15,7 +15,17 @@ import { TwinChart } from "@/components/twin-chart";
 import { VerdictSummary } from "@/components/verdict-summary";
 import { hasWinnerSplit, WinnersTable } from "@/components/winners-table";
 import { PHASES } from "@/lib/engine/cycles";
-import { count, longDate, pct, relativeToBtc, signedPct } from "@/lib/format";
+import { topReturnMeaningful } from "@/lib/engine/outcomes";
+import type { Rate } from "@/lib/engine/stats";
+import { HOLD_ABOVE, ROTATE_BELOW } from "@/lib/engine/verdict";
+import {
+  count,
+  longDate,
+  pct,
+  pctRange,
+  relativeToBtc,
+  signedPct,
+} from "@/lib/format";
 import { shareMeta } from "@/lib/site";
 import { thenHref } from "@/lib/verdict/cases";
 import {
@@ -159,9 +169,11 @@ function Replay({ data }: { data: PastOk }) {
                 <Fact label="Fell out of the top 5,000">
                   {actual.fellOut104w ? "yes" : "no"}
                 </Fact>
-                <Fact label="Back in the top 20">
-                  {actual.reachedTop20 ? "yes" : "no"}
-                </Fact>
+                {topReturnMeaningful(verdict.state.rankAdj) && (
+                  <Fact label="Back in the top 20">
+                    {actual.reachedTop20 ? "yes" : "no"}
+                  </Fact>
+                )}
               </dl>
             </>
           ) : (
@@ -176,7 +188,11 @@ function Replay({ data }: { data: PastOk }) {
               )}
             </p>
           )}
-          <CallCheck result={result} verdictText={verdict.verdictText} />
+          <CallCheck
+            result={result}
+            verdictText={verdict.verdictText}
+            saw={refused ? null : verdict.summary.beatBtc}
+          />
         </aside>
       </div>
 
@@ -277,9 +293,12 @@ function Fact({
 function CallCheck({
   result,
   verdictText,
+  saw,
 }: {
   result: ReturnType<typeof callResult>;
   verdictText: string;
+  /** The beat-BTC rate the tool had that week, or null when it refused. */
+  saw: Rate | null;
 }) {
   const [Icon, title, body] =
     result === "right"
@@ -319,9 +338,20 @@ function CallCheck({
               : "text-muted shrink-0"
         }
       />
-      <p className="text-ink-body text-[15px]">
-        <b className="text-ink">{title}</b> {body}
-      </p>
+      <div className="text-ink-body text-[15px]">
+        <p>
+          <b className="text-ink">{title}</b> {body}
+        </p>
+        {saw && (
+          <p className="mt-2">
+            What it saw: {count(saw.k)} of {count(saw.n)} past coins in this
+            spot beat BTC, {pct(saw.p)} with a range of{" "}
+            {pctRange(saw.lo, saw.hi)}. It says “rotate” only when the whole
+            range is under {pct(ROTATE_BELOW)}, and “hold” only when it is over{" "}
+            {pct(HOLD_ABOVE)}.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
