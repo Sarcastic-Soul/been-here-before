@@ -96,7 +96,12 @@ describe("GET /api/cron/refresh auth", () => {
 describe("GET /api/cron/prewarm auth", () => {
   beforeEach(() => {
     vi.stubEnv("CRON_SECRET", SECRET);
-    prewarm.mockResolvedValue({ warmed: 2, failed: [], ms: 10 });
+    prewarm.mockResolvedValue({
+      warmed: 2,
+      failed: [],
+      ledger: { written: false, day: null, reason: "test" },
+      ms: 10,
+    });
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
 

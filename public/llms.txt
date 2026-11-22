@@ -9,6 +9,7 @@ Base URL: https://been-here-before.vercel.app
 - [Home](https://been-here-before.vercel.app/): search for a coin.
 - [Filecoin example](https://been-here-before.vercel.app/coin/filecoin): one coin page. Replace `filecoin` with any CoinMarketCap slug.
 - [Time machine](https://been-here-before.vercel.app/then): replay the verdict for any coin on a past week, using only history known then, next to what really happened. Example: [LUNA, week of 3 Apr 2022](https://been-here-before.vercel.app/then/terra-luna/2022-04-03).
+- [Prediction ledger](https://been-here-before.vercel.app/ledger): every day's verdicts for the top 100 coins, hash-chained so they cannot be changed later, to be scored when they turn 2 years old.
 - [Method](https://been-here-before.vercel.app/method): the matching rules, the verdict thresholds and the walk-forward test of how well the verdicts held up.
 
 ## JSON API
@@ -17,6 +18,7 @@ All routes are GET, need no key, and read only from our own database. They never
 
 - [/api/verdict?slug=filecoin](https://been-here-before.vercel.app/api/verdict?slug=filecoin): full result for one coin: today's state, bands used, verdict, summary, split by halving cycle, twins and every episode. Returns `status` "ok" or a refusal (`not_found`, `excluded`, `not_covered`, `benchmark`, `moved`).
 - [/api/then?slug=terra-luna&week=2022-04-03](https://been-here-before.vercel.app/api/then?slug=terra-luna&week=2022-04-03): the time machine. The verdict as of that week (only episodes that started at least 106 weeks earlier count) and the actual 2-year outcome.
+- [/api/ledger](https://been-here-before.vercel.app/api/ledger): the ledger days with their hashes; `?day=YYYY-MM-DD` returns the exact lines hashed that day.
 - [/api/coins/search?q=fil](https://been-here-before.vercel.app/api/coins/search?q=fil): find a coin by symbol, name or slug. Returns up to 10 hits.
 - [/api/calibration](https://been-here-before.vercel.app/api/calibration): the walk-forward test of the method since 2018.
 - [/api/health](https://been-here-before.vercel.app/api/health): database status and how fresh the data is.

@@ -69,6 +69,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               >
                 Calibration
               </Link>
+              <Link
+                href="/ledger"
+                className="link hidden min-h-11 items-center sm:inline-flex"
+              >
+                Ledger
+              </Link>
             </nav>
           </div>
         </header>
@@ -88,7 +94,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               </a>
               . Weekly snapshots since April 2013, refreshed daily.
             </p>
-            <p>A base rate from past data. Not financial advice.</p>
+            <p className="flex flex-wrap gap-x-4">
+              <Link href="/ledger" className="link text-ink">
+                Ledger
+              </Link>
+              <a href="/openapi.json" className="link text-ink">
+                API
+              </a>
+              <a href="/llms.txt" className="link text-ink">
+                llms.txt
+              </a>
+              <span>A base rate from past data. Not financial advice.</span>
+            </p>
           </div>
         </footer>
       </body>

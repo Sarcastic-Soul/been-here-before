@@ -157,6 +157,74 @@
         }
       }
     },
+    "/api/ledger": {
+      "get": {
+        "operationId": "getLedger",
+        "summary": "Prediction ledger",
+        "description": "Without day: every ledger day with its hashes, newest first. With day: that day's exact canonical JSON lines, one per top-100 coin, as they were hashed. entriesHash = sha256(lines sorted with a plain string sort, joined by \\n). root = sha256(prevRoot + \\n + day + \\n + entriesHash), prevRoot 'genesis' on the first day.",
+        "parameters": [
+          {
+            "name": "day",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2026-11-22"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The day list, or one day with its lines.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/LedgerList"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LedgerDayLines"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad day.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No ledger entry for that day.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The database did not answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/coins/search": {
       "get": {
         "operationId": "searchCoins",
@@ -1335,6 +1403,70 @@
             }
           }
         }
+      },
+      "LedgerDay": {
+        "type": "object",
+        "required": ["day", "count", "entriesHash", "prevRoot", "root"],
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "description": "Date of the CoinMarketCap state the verdicts used."
+          },
+          "count": {
+            "type": "integer"
+          },
+          "entriesHash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "prevRoot": {
+            "type": ["string", "null"],
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "root": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      },
+      "LedgerList": {
+        "type": "object",
+        "required": ["how", "days"],
+        "properties": {
+          "how": {
+            "type": "string"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LedgerDay"
+            }
+          }
+        }
+      },
+      "LedgerDayLines": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/LedgerDay"
+          },
+          {
+            "type": "object",
+            "required": ["how", "lines"],
+            "properties": {
+              "how": {
+                "type": "string"
+              },
+              "lines": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Canonical JSON, keys in this order: day, slug, coinId, symbol, asOf, rank, drawdown, ageWeeks, verdict, k, n, lo, hi, step, episodesThrough."
+              }
+            }
+          }
+        ]
       }
     }
   }

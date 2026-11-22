@@ -7,10 +7,12 @@ import { asc, eq, isNull } from "drizzle-orm";
 
 import { getCalibration } from "@/lib/calibration/get-calibration";
 import { db } from "@/lib/db/client";
+import { recordLedger, type LedgerResult } from "@/lib/ledger/write";
 import { coins, currentState } from "@/lib/db/schema";
 import { getReceipt } from "@/lib/verdict/get-receipt";
 import { getPanelStats } from "@/lib/verdict/get-stats";
 import { getSlugIndex, getVerdict } from "@/lib/verdict/get-verdict";
+import type { VerdictOk } from "@/lib/verdict/types";
 
 /** How many of today's top coins (after removing stablecoins and wrappers) to warm. */
 export const PREWARM_TOP = 100;
@@ -54,33 +56,55 @@ export async function prewarmSlugs(): Promise<string[]> {
  * Fills the shared cache for the pages most people open: the home page
  * numbers and the top coins' verdicts and receipts. Calls the same cached
  * functions with the same arguments as the pages, so the cache keys match.
+ * Then writes the day's verdicts for the top coins to the prediction ledger.
  */
 export async function prewarm(): Promise<{
   warmed: number;
   failed: string[];
+  ledger: LedgerResult;
   ms: number;
 }> {
   const start = Date.now();
   await Promise.all([getPanelStats(), getCalibration(), getSlugIndex()]);
   const slugs = await prewarmSlugs();
-  const failed: string[] = [];
+  const top: VerdictOk[] = [];
+  async function warm(slug: string) {
+    const verdict = await getVerdict(slug);
+    if (verdict.status !== "ok") return;
+    if (verdict.state.rankAdj <= PREWARM_TOP) top.push(verdict);
+    await getReceipt(verdict.coin.id);
+  }
+  const firstTry: string[] = [];
   let next = 0;
   async function worker() {
     while (next < slugs.length) {
       const slug = slugs[next++];
-      try {
-        const verdict = await getVerdict(slug);
-        if (verdict.status === "ok") await getReceipt(verdict.coin.id);
-      } catch (error) {
-        console.error(`prewarm ${slug} failed`, error);
-        failed.push(slug);
-      }
+      await warm(slug).catch(() => firstTry.push(slug));
     }
   }
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  // One slower retry for anything that failed, often a cold database.
+  const failed: string[] = [];
+  for (const slug of firstTry) {
+    try {
+      await warm(slug);
+    } catch (error) {
+      console.error(`prewarm ${slug} failed`, error);
+      failed.push(slug);
+    }
+  }
+  // A partial day would look like coins were left out on purpose: skip it.
+  const ledger: LedgerResult =
+    failed.length > 0
+      ? { written: false, day: null, reason: `${failed.length} coins failed` }
+      : await recordLedger(top).catch((error: unknown) => {
+          console.error("ledger write failed", error);
+          return { written: false, day: null, reason: "write failed" };
+        });
   return {
     warmed: slugs.length - failed.length,
     failed,
+    ledger,
     ms: Date.now() - start,
   };
 }

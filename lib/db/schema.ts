@@ -1,8 +1,8 @@
 /**
  * Postgres schema (Neon). History tables are rebuilt by scripts/load.ts from
- * the panel; current_state, cmc_receipts and credit_log are written by the
- * daily cron. Prices in coin_weeks and current_state peaks are in lineage-root
- * units (see priceFactorOf in lib/engine/lineage.ts).
+ * the panel; current_state, cmc_receipts, credit_log and the ledger tables are
+ * written by the crons. Prices in coin_weeks and current_state peaks are in
+ * lineage-root units (see priceFactorOf in lib/engine/lineage.ts).
  */
 import { sql } from "drizzle-orm";
 import {
@@ -180,3 +180,31 @@ export const creditLog = pgTable("credit_log", {
   credits: integer("credits"),
   httpStatus: smallint("http_status"),
 });
+
+/**
+ * Prediction ledger: one row per day with the hash chain (see
+ * lib/ledger/chain.ts). Written by the prewarm cron, never edited.
+ */
+export const ledgerDays = pgTable("ledger_days", {
+  day: date("day", { mode: "string" }).primaryKey(),
+  count: integer("count").notNull(),
+  entriesHash: text("entries_hash").notNull(),
+  prevRoot: text("prev_root"),
+  root: text("root").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/** The day's verdict per coin. `line` is the exact canonical JSON that was hashed. */
+export const ledgerEntries = pgTable(
+  "ledger_entries",
+  {
+    day: date("day", { mode: "string" }).notNull(),
+    slug: text("slug").notNull(),
+    coinId: integer("coin_id").notNull(),
+    verdict: text("verdict").notNull(),
+    line: text("line").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.day, t.slug] })],
+);
