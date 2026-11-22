@@ -68,12 +68,15 @@ export async function cmcGet<T = unknown>(
   schema?: z.ZodType<T>,
 ): Promise<CmcResult<T>> {
   const requestUrl = buildUrl(endpoint, params);
+  // Read the key before the loop so a missing key fails at once, not after
+  // every retry.
+  const key = apiKey();
 
   for (let attempt = 0; ; attempt++) {
     let response: Response;
     try {
       response = await fetch(requestUrl, {
-        headers: { Accept: "application/json", "X-CMC_PRO_API_KEY": apiKey() },
+        headers: { Accept: "application/json", "X-CMC_PRO_API_KEY": key },
         cache: "no-store",
       });
     } catch (error) {
