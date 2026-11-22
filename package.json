@@ -19,10 +19,10 @@
     "format": "prettier --write .",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "data:probe": "tsx --conditions=react-server scripts/probe.ts",
-    "data:pull": "tsx --conditions=react-server scripts/pull-history.ts",
-    "data:build": "tsx --conditions=react-server scripts/build-panel.ts && tsx --conditions=react-server scripts/load.ts",
-    "data:calibrate": "tsx --conditions=react-server scripts/calibrate.ts"
+    "data:probe": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/probe.ts",
+    "data:pull": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/pull-history.ts",
+    "data:build": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/build-panel.ts && tsx --env-file-if-exists=.env.local --conditions=react-server scripts/load.ts",
+    "data:calibrate": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/calibrate.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "1.2.1",
