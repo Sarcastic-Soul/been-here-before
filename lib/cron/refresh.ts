@@ -106,14 +106,16 @@ export async function refreshCurrentState() {
   const missing = lineages.filter((id) => !anchors.has(id));
   if (missing.length) {
     const history = (await sql.query(
-      `SELECT DISTINCT ON (lineage_id) lineage_id, week, running_peak_usd, weeks_since_peak, age_weeks
+      // week as text: the driver turns a date into a local-midnight Date, which breaks parsing.
+      `SELECT DISTINCT ON (lineage_id) lineage_id, week::text AS week, running_peak_usd, weeks_since_peak, age_weeks
        FROM coin_weeks
        WHERE lineage_id = ANY($1::int4[]) AND NOT is_continuation AND running_peak_usd IS NOT NULL
        ORDER BY lineage_id, week DESC`,
       [missing],
     )) as { lineage_id: number; week: string; running_peak_usd: number; weeks_since_peak: number; age_weeks: number }[];
     for (const row of history) {
-      const week = Date.parse(`${String(row.week).slice(0, 10)}T00:00:00Z`);
+      const week = Date.parse(`${row.week}T00:00:00Z`);
+      if (Number.isNaN(week)) throw new Error(`bad week ${row.week} for lineage ${row.lineage_id}`);
       anchors.set(row.lineage_id, {
         runningPeak: row.running_peak_usd,
         peakAt: new Date(week - row.weeks_since_peak * 7 * 86_400_000),
