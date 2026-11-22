@@ -129,8 +129,14 @@ export const calibrationSummary = pgTable("calibration_summary", {
   horizon: smallint("horizon").primaryKey(),
   brier: real("brier").notNull(),
   brierBaseline: real("brier_baseline").notNull(),
+  /** Coin-dates that got a prediction (n >= 20 episodes). */
   n: integer("n").notNull(),
+  /** Coin-dates tested, with or without a prediction. */
+  tested: integer("tested").notNull().default(0),
+  /** One plain example for the method page. */
   exampleJson: jsonb("example_json"),
+  /** Per verdict kind: how many times it was given and how many of those coins beat BTC. */
+  verdictsJson: jsonb("verdicts_json"),
   computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
