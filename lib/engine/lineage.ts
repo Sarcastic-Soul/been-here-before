@@ -55,6 +55,19 @@ export function lineageRootOf(rules: readonly LineageRule[] = LINEAGE_RULES): Ma
 }
 
 /**
+ * Root-lineage price units per unit of each migrated id. VET is 100 because
+ * 1 VEN became 100 VET, so a VET price times 100 is comparable with VEN history.
+ * Ids not in the map use 1. Merges are not included: the merged coin's series ends.
+ */
+export function priceFactorOf(rules: readonly LineageRule[] = LINEAGE_RULES): Map<number, number> {
+  const factor = new Map<number, number>();
+  for (const rule of rules) {
+    if (rule.kind === "migration") factor.set(rule.to, (factor.get(rule.from) ?? 1) * rule.ratio);
+  }
+  return factor;
+}
+
+/**
  * Join per-id weekly points into lineage series.
  *
  * @param pointsById  points per CMC id, each sorted by week, prices in own units

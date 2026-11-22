@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { assembleLineages, LINEAGE_RULES, lineageRootOf, type LineageRule } from "@/lib/engine/lineage";
+import { assembleLineages, LINEAGE_RULES, lineageRootOf, priceFactorOf, type LineageRule } from "@/lib/engine/lineage";
 import type { SeriesPoint } from "@/lib/engine/types";
 
 import { point } from "./helpers";
@@ -29,6 +29,10 @@ describe("lineage", () => {
       [12, POL],
     ]);
     expect(lineageRootOf().get(POL)).toBe(MATIC);
+    expect(priceFactorOf().get(3077)).toBe(100); // VET, 1 VEN = 100 VET
+    expect(priceFactorOf().get(7278)).toBe(0.01); // AAVE, 100 LEND = 1 AAVE
+    expect(priceFactorOf().get(POL)).toBe(1);
+    expect(priceFactorOf().has(3773)).toBe(false); // FET only takes merges
   });
 
   it("converts successor prices with the swap ratio", () => {

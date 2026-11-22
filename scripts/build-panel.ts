@@ -12,7 +12,7 @@ import { join } from "node:path";
 
 import { cycleOf, marketPhases } from "@/lib/engine/cycles";
 import { computeFeatures } from "@/lib/engine/features";
-import { assembleLineages, lineageRootOf } from "@/lib/engine/lineage";
+import { assembleLineages, lineageRootOf, priceFactorOf } from "@/lib/engine/lineage";
 import { computeOutcomes } from "@/lib/engine/outcomes";
 import type { SeriesPoint } from "@/lib/engine/types";
 import { isExcludedAsset, looksPegged, REFERENCE_IDS } from "@/lib/engine/universe";
@@ -281,14 +281,15 @@ async function main() {
 
   // Coins: every id in a kept lineage, plus everything in the latest snapshot.
   // Names come from today's CMC map where possible (dead coins keep their names).
-  const current = new Map<number, MapRow>();
+  const current = new Map<number, MapRow & { status: string }>();
   for (const status of ["untracked", "inactive", "active"]) {
     const map = await readJsonGz<{ data: MapRow[] }>(join(DATA_DIR, "raw", "map", `${status}.json.gz`));
-    for (const row of map.data) current.set(row.id, row);
+    for (const row of map.data) current.set(row.id, { ...row, status });
   }
+  const priceFactor = priceFactorOf();
   const coins = columnar([
-    "id", "lineage_id", "name", "symbol", "slug", "date_added", "is_token", "excluded_reason",
-    "first_week", "last_week",
+    "id", "lineage_id", "name", "symbol", "slug", "status", "date_added", "is_token",
+    "excluded_reason", "price_factor", "first_week", "last_week",
   ]);
   for (const coin of meta.values()) {
     const lineageId = rootOf.get(coin.id) ?? coin.id;
@@ -300,9 +301,11 @@ async function main() {
       name: now?.name ?? coin.name,
       symbol: now?.symbol ?? coin.symbol,
       slug: now?.slug ?? coin.slug,
+      status: now?.status ?? "unknown",
       date_added: coin.dateAdded,
       is_token: coin.isToken,
       excluded_reason: coin.excluded,
+      price_factor: priceFactor.get(coin.id) ?? 1,
       first_week: weekDates[coin.firstWeek],
       last_week: weekDates[coin.lastWeek],
     };

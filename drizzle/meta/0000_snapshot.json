@@ -1,0 +1,685 @@
+{
+  "id": "743245fe-d0e6-4c19-b0db-8a4d6ffe1802",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.calibration_points": {
+      "name": "calibration_points",
+      "schema": "",
+      "columns": {
+        "horizon": {
+          "name": "horizon",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "test_date": {
+          "name": "test_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bucket": {
+          "name": "bucket",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "predicted": {
+          "name": "predicted",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "realized": {
+          "name": "realized",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "n": {
+          "name": "n",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "calibration_points_horizon_test_date_bucket_pk": {
+          "name": "calibration_points_horizon_test_date_bucket_pk",
+          "columns": [
+            "horizon",
+            "test_date",
+            "bucket"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.calibration_summary": {
+      "name": "calibration_summary",
+      "schema": "",
+      "columns": {
+        "horizon": {
+          "name": "horizon",
+          "type": "smallint",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "brier": {
+          "name": "brier",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "brier_baseline": {
+          "name": "brier_baseline",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "n": {
+          "name": "n",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "example_json": {
+          "name": "example_json",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "computed_at": {
+          "name": "computed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cmc_receipts": {
+      "name": "cmc_receipts",
+      "schema": "",
+      "columns": {
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "endpoint": {
+          "name": "endpoint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_url": {
+          "name": "request_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fetched_at": {
+          "name": "fetched_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "http_status": {
+          "name": "http_status",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "credit_count": {
+          "name": "credit_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "body": {
+          "name": "body",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.coin_weeks": {
+      "name": "coin_weeks",
+      "schema": "",
+      "columns": {
+        "lineage_id": {
+          "name": "lineage_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "week": {
+          "name": "week",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "coin_id": {
+          "name": "coin_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rank_raw": {
+          "name": "rank_raw",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rank_adj": {
+          "name": "rank_adj",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price_usd": {
+          "name": "price_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "market_cap_usd": {
+          "name": "market_cap_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "volume_24h_usd": {
+          "name": "volume_24h_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_continuation": {
+          "name": "is_continuation",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "running_peak_usd": {
+          "name": "running_peak_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "drawdown": {
+          "name": "drawdown",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "weeks_since_peak": {
+          "name": "weeks_since_peak",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "age_weeks": {
+          "name": "age_weeks",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ret_52w": {
+          "name": "ret_52w",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "beat_btc_52w": {
+          "name": "beat_btc_52w",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fell_out_52w": {
+          "name": "fell_out_52w",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ret_104w": {
+          "name": "ret_104w",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "beat_btc_104w": {
+          "name": "beat_btc_104w",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fell_out_104w": {
+          "name": "fell_out_104w",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reached_top20_104w": {
+          "name": "reached_top20_104w",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "outcome_complete_104w": {
+          "name": "outcome_complete_104w",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "coin_weeks_match_idx": {
+          "name": "coin_weeks_match_idx",
+          "columns": [
+            {
+              "expression": "rank_adj",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "drawdown",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"coin_weeks\".\"outcome_complete_104w\"",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "coin_weeks_lineage_id_week_pk": {
+          "name": "coin_weeks_lineage_id_week_pk",
+          "columns": [
+            "lineage_id",
+            "week"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.coins": {
+      "name": "coins",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "lineage_id": {
+          "name": "lineage_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date_added": {
+          "name": "date_added",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_token": {
+          "name": "is_token",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "excluded_reason": {
+          "name": "excluded_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "price_factor": {
+          "name": "price_factor",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "first_week": {
+          "name": "first_week",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_week": {
+          "name": "last_week",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "coins_slug_idx": {
+          "name": "coins_slug_idx",
+          "columns": [
+            {
+              "expression": "slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "coins_symbol_idx": {
+          "name": "coins_symbol_idx",
+          "columns": [
+            {
+              "expression": "lower(\"symbol\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "coins_lineage_idx": {
+          "name": "coins_lineage_idx",
+          "columns": [
+            {
+              "expression": "lineage_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.credit_log": {
+      "name": "credit_log",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "credit_log_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "at": {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "endpoint": {
+          "name": "endpoint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "credits": {
+          "name": "credits",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "http_status": {
+          "name": "http_status",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.current_state": {
+      "name": "current_state",
+      "schema": "",
+      "columns": {
+        "coin_id": {
+          "name": "coin_id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "lineage_id": {
+          "name": "lineage_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "as_of": {
+          "name": "as_of",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rank_raw": {
+          "name": "rank_raw",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rank_adj": {
+          "name": "rank_adj",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price_usd": {
+          "name": "price_usd",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "market_cap_usd": {
+          "name": "market_cap_usd",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "volume_24h_usd": {
+          "name": "volume_24h_usd",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "running_peak_usd": {
+          "name": "running_peak_usd",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "drawdown": {
+          "name": "drawdown",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "weeks_since_peak": {
+          "name": "weeks_since_peak",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "age_weeks": {
+          "name": "age_weeks",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.market_weeks": {
+      "name": "market_weeks",
+      "schema": "",
+      "columns": {
+        "week": {
+          "name": "week",
+          "type": "date",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "btc_price_usd": {
+          "name": "btc_price_usd",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_market_cap_usd": {
+          "name": "total_market_cap_usd",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "btc_dominance": {
+          "name": "btc_dominance",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "market_drawdown": {
+          "name": "market_drawdown",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phase": {
+          "name": "phase",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cycle": {
+          "name": "cycle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
