@@ -33,7 +33,7 @@ const SLUG = /^[a-z0-9-]{1,100}$/;
 export async function generateMetadata({
   params,
 }: PageProps<"/coin/[slug]">): Promise<Metadata> {
-  const { slug } = await params;
+  const slug = (await params).slug.toLowerCase();
   if (!SLUG.test(slug)) return { title: "Coin not found" };
   const { data } = await getVerdictOrSaved(slug);
   if (data.status === "moved" && data.movedTo)

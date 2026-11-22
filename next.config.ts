@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
     "/api/cron/prewarm": ["./public/precomputed/**/*"],
   },
   partialPrefetching: true,
+  async redirects() {
+    return [{ source: "/coin", destination: "/", permanent: false }];
+  },
   turbopack: {
     rules: {
       "*.css": {

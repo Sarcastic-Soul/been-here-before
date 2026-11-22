@@ -1,30 +1,30 @@
 {
-  "savedAt": "2026-11-22T14:46:35.501Z",
+  "savedAt": "2026-11-22T15:48:09.424Z",
   "note": "Derived statistics from weekly CoinMarketCap snapshots, saved by scripts/precompute.ts as a fallback. Data provided by CoinMarketCap.com. Not financial advice.",
   "coins": [
     {
       "slug": "ethereum",
       "name": "Ethereum",
       "verdict": "Not enough history",
-      "n": 2
+      "n": 18
     },
     {
       "slug": "xrp",
       "name": "XRP",
-      "verdict": "Not enough history",
-      "n": 7
+      "verdict": "History favors rotating to BTC",
+      "n": 22
     },
     {
       "slug": "bnb",
       "name": "BNB",
-      "verdict": "Not enough history",
-      "n": 8
+      "verdict": "No clear edge",
+      "n": 22
     },
     {
       "slug": "solana",
       "name": "Solana",
-      "verdict": "Not enough history",
-      "n": 12
+      "verdict": "No clear edge",
+      "n": 20
     },
     {
       "slug": "dogecoin",
@@ -35,14 +35,14 @@
     {
       "slug": "cardano",
       "name": "Cardano",
-      "verdict": "Not enough history",
-      "n": 17
+      "verdict": "History favors rotating to BTC",
+      "n": 39
     },
     {
       "slug": "tron",
       "name": "TRON",
-      "verdict": "Not enough history",
-      "n": 8
+      "verdict": "No clear edge",
+      "n": 27
     },
     {
       "slug": "chainlink",
@@ -102,7 +102,7 @@
       "slug": "uniswap",
       "name": "Uniswap",
       "verdict": "History favors rotating to BTC",
-      "n": 39
+      "n": 37
     },
     {
       "slug": "near-protocol",
@@ -120,7 +120,7 @@
       "slug": "internet-computer",
       "name": "Internet Computer",
       "verdict": "History favors rotating to BTC",
-      "n": 49
+      "n": 53
     },
     {
       "slug": "ethereum-classic",
@@ -137,8 +137,8 @@
     {
       "slug": "monero",
       "name": "Monero",
-      "verdict": "Not enough history",
-      "n": 5
+      "verdict": "History favors rotating to BTC",
+      "n": 28
     },
     {
       "slug": "cosmos",
@@ -162,7 +162,7 @@
       "slug": "arbitrum",
       "name": "Arbitrum",
       "verdict": "History favors rotating to BTC",
-      "n": 160
+      "n": 157
     },
     {
       "slug": "render",
