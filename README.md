@@ -36,17 +36,18 @@ It is a base rate, not a forecast and not financial advice.
 
 ### On every coin page
 
-- **The answer:** a plain heading, the count, the 95% range, and a dot for every past episode. Hover or tap a dot for that coin and its result.
+- **The answer:** a plain heading, the count, the 95% range, and a dot for every past episode. Hover, tap or arrow-key through the dots for each coin and its result.
 - **The five closest twins:** their price against BTC over the 2 years after they stood where this coin stands. Click a ringed dot to pick out its line.
 - **Splits that test the number:** by halving cycle, by market phase in the start week (today's phase is marked), and what the winners had that the others did not (volume, time since peak, and more).
 - **Survivorship, measured:** the rate if only coins alive today were counted, next to the real one.
 - **Every episode** in a table, and a **Receipts** drawer with the CoinMarketCap call behind today's state.
 - **Copy link:** each page unfurls into a card that shows the verdict.
+- **How hard BTC is to beat:** BTC's own page, and coins with too little history (ETH), show the share of all coin-weeks since 2013 that beat BTC over 2 years, by rank band: 25% for ranks 2–10, falling to 10% for ranks 201–1,000.
 
 ### Beyond one coin
 
 - **[Time machine](https://been-here-before.vercel.app/then):** what the app would have said for any coin on any past Sunday, using only history known then, next to what really happened. Includes LUNA five weeks before the collapse, FTT a month before FTX failed, and BitConnect, with the misses counted too.
-- **[Walk-forward test](https://been-here-before.vercel.app/method#calibration):** the same replay for every coin ranked 20–500, every quarter since 2018. See [the honest result](#does-it-work-the-honest-result).
+- **[Walk-forward test](https://been-here-before.vercel.app/method#calibration):** the same replay for every coin ranked 2–1,000, every quarter since 2018. See [the honest result](#does-it-work-the-honest-result).
 - **[Prediction ledger](https://been-here-before.vercel.app/ledger):** every day, the verdicts for the top 100 coins are written to a hash chain that the page re-checks in the browser. They get scored when they turn 2 years old, from 19 Nov 2028.
 - **[MCP server and JSON API](#this-apps-own-api)** so agents can ask the same question, plus [`llms.txt`](https://been-here-before.vercel.app/llms.txt) and an [OpenAPI file](https://been-here-before.vercel.app/openapi.json).
 
@@ -63,7 +64,7 @@ All rules are fixed in advance and shown on the [method page](https://been-here-
 - **One episode per coin per halving cycle**: the first week it entered the bands. Counting every week would fill the sample with near-copies.
 - **No look-ahead.** Features for week W use only data at or before W. A unit test removes every row after W and checks that nothing changes.
 - **Dead coins count.** A coin that left the top 5,000 within the 2 years is counted as a total loss, not dropped.
-- **Ranges allow for bunching in time.** Episodes that start in the same half-year share most of their 2 years, so they are not independent. Every rate gets a Wilson 95% interval at an _effective n_ that accounts for this (cluster-robust, by half-year). Filecoin's 85 episodes count as about 53.
+- **Ranges allow for bunching in time.** Episodes that start in the same half-year share most of their 2 years, so they are not independent. Every rate gets a Wilson 95% interval at an _effective n_ that accounts for this (cluster-robust, by half-year). Filecoin's 85 episodes count as about 53. When the bunching cannot be measured (every episode has the same result, or all sit in one half-year), the app assumes the worst case, that episodes in the same half-year move together fully, so Dogecoin's 0 of 20 gets a range of 0–32%, not 0–16%.
 - **Fixed widening for big coins.** Few coins have ever sat at rank 2 to 10, so when the standard match finds under 20 episodes the app tries three wider bands in a fixed order (rank ×2 / ±15 points, ×3 / ±20, ×4 / ±25) and says on the page which one it used. Still under 20: no verdict.
 
 | Condition (`p` = share that beat BTC over 2 years, range `[lo, hi]`) | Verdict (plain words on the page)                                      |
@@ -77,15 +78,23 @@ The app refuses stablecoins, wrapped tokens and BTC itself (BTC is the yardstick
 
 ## Does it work? The honest result
 
-`scripts/calibrate.ts` replays the method at the start of every quarter from January 2018 to October 2024, for every coin ranked 20–500, using only episodes whose 2 years had already ended by that date, with the same widening steps. Then it checks what really happened.
+`scripts/calibrate.ts` replays the method at the start of every quarter from January 2018 to October 2024, for every coin ranked 2–1,000 (the ranks the coin pages cover), using only episodes whose 2 years had already ended by that date, with the same widening steps. Then it checks what really happened.
 
-- 13,435 coin-dates tested, 13,010 got a prediction.
-- **"Rotate to BTC" was given 10,949 times, and 91.6% of those coins did lag BTC** over the next 2 years.
-- But most coins lag BTC anyway: across all predictions only 9.8% beat it. So "rotate" is only a little better than that base rate. Where the verdict does sort coins: those it called "no clear edge" beat BTC about twice as often as those it called "rotate" (17.3% against 8.4%).
-- Brier score 0.0963 against 0.0984 for a baseline that always predicts the overall rate: a gain of 2.2%, with a 95% range of −0.2% to 6.9% across test dates. **The range includes zero**, and most of the gain comes from 2018.
-- "Hold" never fired, so in practice the verdict has two states. Predictions run high in the 10–50% buckets (predicted 15% came true 9%), most likely because the 2017 boom made earlier cycles kinder to altcoins than 2018–2024.
+- 27,939 coin-dates tested, 26,870 got a prediction (the rest had too little history).
+- **"Rotate to BTC" was given 23,280 times, and 92% of those coins did lag BTC** over the next 2 years.
+- But most coins lag BTC anyway: across all predictions only 8.7% beat it. So "rotate" is only a little better than that base rate. Where the verdict does sort coins: those it called "no clear edge" beat BTC about twice as often as those it called "rotate" (14.7% against 7.8%).
+- Brier score 0.0864 against 0.0879 for a baseline that always predicts the overall rate: a gain of 1.7%, with a 95% range of −0.7% to 6.2% across test dates. **The range includes zero**, and most of the gain comes from 2018 and 2019.
+- By rank group, each against its own base rate:
 
-The method page shows the reliability chart and the split by year, and says all of this in plain words. The thresholds were not tuned after seeing these results.
+  | Ranks     | Predicted | Gain over base rate |
+  | --------- | --------- | ------------------- |
+  | 2–19      | 337       | +3.8%               |
+  | 20–500    | 13,010    | +2.2%               |
+  | 501–1,000 | 13,523    | **−4.2%** (worse)   |
+
+- "Hold" never fired, so in practice the verdict has two states. Predictions run high in the 10–50% buckets (predicted 15% came true 8%), most likely because the 2017 boom made earlier cycles kinder to altcoins than 2018–2024.
+
+The method page shows the reliability chart, the split by year and by rank group, and says all of this in plain words. The thresholds were not tuned after seeing these results.
 
 ## CoinMarketCap endpoints used
 
@@ -184,7 +193,7 @@ Every coin page shows the same thing live: open **Receipts** to see the stored r
 
 ## This app's own API
 
-Every route is a GET that needs no key and reads only from this app's database. None of them call CoinMarketCap. Verdicts are cached for a day and refreshed after the daily cron.
+Every route needs no key, sends CORS headers so a browser on any site can call it, and reads only from this app's database. None of them call CoinMarketCap. Answers carry CDN cache headers (an hour, served stale for a day while refreshing; finished replays for a day) and the data refreshes after the daily cron.
 
 | Route                                           | Returns                                                                                                              |
 | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
