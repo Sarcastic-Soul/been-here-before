@@ -2,9 +2,23 @@
 
 Type a coin. See every past coin that stood in the same spot, and how it ended up against BTC.
 
+[![CI](https://github.com/Sarcastic-Soul/been-here-before/actions/workflows/ci.yml/badge.svg)](https://github.com/Sarcastic-Soul/been-here-before/actions/workflows/ci.yml)
+
 **Live:** https://been-here-before.vercel.app · **Track:** Data and Visualisation · Built for the Build with CMC API Hackathon, Round 2 (DoraHacks)
 
-![Filecoin verdict: 7 of 85 past episodes beat holding BTC over the next 2 years](.github/assets/verdict.png)
+![Filecoin: most coins in this spot lost to BTC. 8 of 85 past episodes beat holding BTC over the next 2 years](.github/assets/verdict.png)
+
+## Submission checklist
+
+| Required item                                          | Where                                                                                                              |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| 1. Public GitHub repository                            | This repository                                                                                                    |
+| 2. Working demo                                        | https://been-here-before.vercel.app (demo video linked from the BUIDL page)                                        |
+| 3. X post with #BuildwithCMC                           | Linked from the BUIDL page                                                                                         |
+| 4. CMC API endpoints used, named                       | [CoinMarketCap endpoints used](#coinmarketcap-endpoints-used)                                                      |
+| 5. Evidence of a real API call: code and response      | [Evidence of a real API call](#evidence-of-a-real-api-call), and the **Receipts** drawer on every coin page        |
+| 6. What the API made possible, where it got in the way | [What the API made possible, and where it got in the way](#what-the-api-made-possible-and-where-it-got-in-the-way) |
+| 7. Track                                               | Data and Visualisation                                                                                             |
 
 ## What it does
 
@@ -14,11 +28,27 @@ Most crypto charts show one coin. This app asks a different question: _when othe
 2. The app reads its spot today: rank (after removing stablecoins and wrapped tokens), how far it is below its peak so far, and how long it has been listed on CoinMarketCap.
 3. It searches 708 weekly CoinMarketCap snapshots from April 2013 to November 2026, **dead coins included**, for every coin that was once in the same spot.
 4. It follows each of those past coins for the next 2 years and counts how many beat simply holding BTC.
-5. It gives a plain verdict with the count, a 95% range, the split by halving cycle, the five closest "twins" as a chart, every episode in a table, and a receipts drawer with the CoinMarketCap calls behind the page.
+5. It says the answer in plain words, with the count, a 95% range and every past episode behind it.
 
-Filecoin today (rank 66, down 99.7% from its peak, listed 8.9 years ago) matches 85 past episodes from 63 different coins. 7 of them beat BTC over 2 years: 8%, with a 95% range of 4–16%. Verdict: **History favors rotating to BTC.**
+Filecoin today (rank 67, down 99.7% from its peak, listed 8.9 years ago) matches 85 past episodes from 64 different coins. 8 of them beat BTC over 2 years: 9%, with a 95% range of 4–20%. In plain words: **most coins in this spot lost to BTC** (verdict: "History favors rotating to BTC"). Counting only coins that are still alive today would have given 7 of 80; every coin page shows that comparison next to the real count.
 
 It is a base rate, not a forecast and not financial advice.
+
+### On every coin page
+
+- **The answer:** a plain heading, the count, the 95% range, and a dot for every past episode. Hover or tap a dot for that coin and its result.
+- **The five closest twins:** their price against BTC over the 2 years after they stood where this coin stands. Click a ringed dot to pick out its line.
+- **Splits that test the number:** by halving cycle, by market phase in the start week (today's phase is marked), and what the winners had that the others did not (volume, time since peak, and more).
+- **Survivorship, measured:** the rate if only coins alive today were counted, next to the real one.
+- **Every episode** in a table, and a **Receipts** drawer with the CoinMarketCap call behind today's state.
+- **Copy link:** each page unfurls into a card that shows the verdict.
+
+### Beyond one coin
+
+- **[Time machine](https://been-here-before.vercel.app/then):** what the app would have said for any coin on any past Sunday, using only history known then, next to what really happened. Includes LUNA five weeks before the collapse, FTT a month before FTX failed, and BitConnect, with the misses counted too.
+- **[Walk-forward test](https://been-here-before.vercel.app/method#calibration):** the same replay for every coin ranked 20–500, every quarter since 2018. See [the honest result](#does-it-work-the-honest-result).
+- **[Prediction ledger](https://been-here-before.vercel.app/ledger):** every day, the verdicts for the top 100 coins are written to a hash chain that the page re-checks in the browser. They get scored when they turn 2 years old, from 19 Nov 2028.
+- **[MCP server and JSON API](#this-apps-own-api)** so agents can ask the same question, plus [`llms.txt`](https://been-here-before.vercel.app/llms.txt) and an [OpenAPI file](https://been-here-before.vercel.app/openapi.json).
 
 ## The rules
 
@@ -33,27 +63,29 @@ All rules are fixed in advance and shown on the [method page](https://been-here-
 - **One episode per coin per halving cycle**: the first week it entered the bands. Counting every week would fill the sample with near-copies.
 - **No look-ahead.** Features for week W use only data at or before W. A unit test removes every row after W and checks that nothing changes.
 - **Dead coins count.** A coin that left the top 5,000 within the 2 years is counted as a total loss, not dropped.
-- **Wilson 95% intervals** on every rate, medians (not means) for returns.
+- **Ranges allow for bunching in time.** Episodes that start in the same half-year share most of their 2 years, so they are not independent. Every rate gets a Wilson 95% interval at an _effective n_ that accounts for this (cluster-robust, by half-year). Filecoin's 85 episodes count as about 53.
+- **Fixed widening for big coins.** Few coins have ever sat at rank 2 to 10, so when the standard match finds under 20 episodes the app tries three wider bands in a fixed order (rank ×2 / ±15 points, ×3 / ±20, ×4 / ±25) and says on the page which one it used. Still under 20: no verdict.
 
-| Condition (`p` = share that beat BTC over 2 years, range `[lo, hi]`) | Verdict                                                  |
-| -------------------------------------------------------------------- | -------------------------------------------------------- |
-| n < 20                                                               | Not enough history. Shows the closest twins, no verdict. |
-| hi < 35%                                                             | History favors rotating to BTC.                          |
-| lo > 50%                                                             | History favors holding.                                  |
-| otherwise                                                            | No clear edge.                                           |
+| Condition (`p` = share that beat BTC over 2 years, range `[lo, hi]`) | Verdict (plain words on the page)                                      |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| n < 20, even after widening                                          | Not enough history. Shows the closest twins, no rates.                 |
+| hi < 35%                                                             | History favors rotating to BTC ("Most coins in this spot lost to BTC") |
+| lo > 50%                                                             | History favors holding ("Most coins in this spot beat BTC")            |
+| otherwise                                                            | No clear edge ("No clear edge either way against BTC")                 |
 
 The app refuses stablecoins, wrapped tokens and BTC itself (BTC is the yardstick), and coins outside adjusted rank 1–1,000.
 
 ## Does it work? The honest result
 
-`scripts/calibrate.ts` replays the method at the start of every quarter from January 2018 to October 2024, for every coin ranked 20–500, using only episodes whose 2 years had already ended by that date. Then it checks what really happened.
+`scripts/calibrate.ts` replays the method at the start of every quarter from January 2018 to October 2024, for every coin ranked 20–500, using only episodes whose 2 years had already ended by that date, with the same widening steps. Then it checks what really happened.
 
-- 13,435 coin-dates tested, 12,572 got a prediction.
-- **"Rotate to BTC" was given 11,368 times, and 91% of those coins did lag BTC** over the next 2 years.
-- Brier score 0.0964 against 0.0990 for a baseline that always predicts the overall rate: a small gain (2.6%), not a big one.
-- "Hold" never fired. Predictions run a little high (the 15% bucket came true 9% of the time), most likely because the 2017 altcoin boom made earlier cycles kinder to altcoins than 2018–2024.
+- 13,435 coin-dates tested, 13,010 got a prediction.
+- **"Rotate to BTC" was given 10,949 times, and 91.6% of those coins did lag BTC** over the next 2 years.
+- But most coins lag BTC anyway: across all predictions only 9.8% beat it. So "rotate" is only a little better than that base rate. Where the verdict does sort coins: those it called "no clear edge" beat BTC about twice as often as those it called "rotate" (17.3% against 8.4%).
+- Brier score 0.0963 against 0.0984 for a baseline that always predicts the overall rate: a gain of 2.2%, with a 95% range of −0.2% to 6.9% across test dates. **The range includes zero**, and most of the gain comes from 2018.
+- "Hold" never fired, so in practice the verdict has two states. Predictions run high in the 10–50% buckets (predicted 15% came true 9%), most likely because the 2017 boom made earlier cycles kinder to altcoins than 2018–2024.
 
-The method page shows the reliability chart and says all of this in plain words. The thresholds were not tuned after seeing these results.
+The method page shows the reliability chart and the split by year, and says all of this in plain words. The thresholds were not tuned after seeing these results.
 
 ## CoinMarketCap endpoints used
 
@@ -61,7 +93,7 @@ The method page shows the reliability chart and says all of this in plain words.
 | ---------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
 | `/v1/cryptocurrency/listings/historical` | `scripts/pull-history.ts`                          | One top-5,000 snapshot per Sunday since 28 Apr 2013 (708 snapshots, 2,010,527 rows). This is the whole history behind every verdict. | 1 per 100 coins; 20,306 for the full pull |
 | `/v1/cryptocurrency/listings/latest`     | `/api/cron/refresh` (Vercel Cron, daily 01:00 UTC) | Today's rank, price and market cap for the top 2,000                                                                                 | 8 per call                                |
-| `/v1/global-metrics/quotes/historical`   | `scripts/pull-global.ts`                           | Weekly total market cap for the market phase label                                                                                   | 8 for 708 weeks                           |
+| `/v1/global-metrics/quotes/historical`   | `scripts/pull-global.ts`                           | Weekly total market cap and BTC dominance for the market phase                                                                       | 8 for 708 weeks                           |
 | `/v1/cryptocurrency/map`                 | `scripts/pull-map.ts`                              | Status of every coin id (active, inactive, untracked)                                                                                | 0                                         |
 | `/v1/key/info`                           | `scripts/probe.ts`                                 | Plan and credit check before the pull                                                                                                | 0                                         |
 
@@ -126,7 +158,7 @@ GET https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?start=1&
 }
 ```
 
-Every coin page shows the same thing live: open **Receipts** to see the request URL, fetch time, HTTP status, credits used and the coin's row exactly as CoinMarketCap returned it, plus the `listings/historical` call behind each of the five closest twins.
+Every coin page shows the same thing live: open **Receipts** to see the stored request URL, fetch time, HTTP status, credits used and the coin's row exactly as CoinMarketCap returned it. For the history, the drawer lists the `listings/historical` request for the snapshot each of the five closest twins came from. Those requests are rebuilt from the snapshot date: the raw history responses stay on the machine that pulled them (they are CMC data, so they are not in this repository or on the site), and only the derived panel is in the database.
 
 ![Receipts drawer showing the listings/latest call and Filecoin's raw row](.github/assets/receipts.png)
 
@@ -137,6 +169,7 @@ Every coin page shows the same thing live: open **Receipts** to see the request 
 - `listings/historical` on the Startup plan goes back to 2013 and **still includes coins that are dead today** (BitConnect is in the 2018-01-07 snapshot; 3,434 of the 5,000 coins on 2022-01-02 are untracked now). That is what lets this study avoid counting only survivors, which is the main flaw in most "what happens after a crash" charts.
 - `limit=5000` works on `listings/historical`, so one call per week covers the whole market that mattered. 708 weeks cost about 20,000 credits, a small part of one month's plan.
 - `/v1/cryptocurrency/map` is free and lists inactive and untracked coins.
+- `global-metrics/quotes/historical` gives the whole market's history in one cheap call, enough to label every week's market phase.
 
 **Got in the way**
 
@@ -146,19 +179,39 @@ Every coin page shows the same thing live: open **Receipts** to see the request 
 - 38 coin ids in the 2022-01-02 snapshot are in none of the three map lists, so names and slugs have to come from the snapshot rows.
 - During the 708-call pull, three requests failed at the network level and one returned HTTP 200 with a body that could not be parsed. The client now retries both and refuses to save a snapshot with no rows.
 - Tags are today's labels only, with no history. Old coins get tagged "AI" years later, so tags cannot be used for matching without leaking hindsight.
+- Many wrapped and liquid-staking tokens have no tag at all, so the app also drops coins whose price tracks BTC, ETH, BNB, SOL or USD over their whole history.
 - It is unclear whether stored historical data may back a public site after the event. We asked in the DoraHacks Q&A. After the event the app will run on the Basic plan with the cron only.
 
 ## This app's own API
 
-Read routes serve derived statistics from Postgres. Verdicts and the calibration result are cached for a day and refreshed when the daily cron runs.
+Every route is a GET that needs no key and reads only from this app's database. None of them call CoinMarketCap. Verdicts are cached for a day and refreshed after the daily cron.
 
-| Route                            | Returns                                                                                                              |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/verdict?slug=filecoin` | The full verdict as JSON: state, bands, rates with ranges, per-cycle split, twins with paths, all episodes, evidence |
-| `GET /api/coins/search?q=fil`    | Coin suggestions for the search box                                                                                  |
-| `GET /api/calibration`           | The walk-forward test result                                                                                         |
-| `GET /api/health`                | Database status and data freshness                                                                                   |
-| `GET /api/cron/refresh`          | Daily refresh (needs `Authorization: Bearer $CRON_SECRET`)                                                           |
+| Route                                           | Returns                                                                                                              |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/verdict?slug=filecoin`                | The full verdict as JSON: state, bands, rates with ranges, per-cycle split, twins with paths, all episodes, evidence |
+| `GET /api/then?slug=terra-luna&week=2022-04-03` | The time machine: the verdict as of that week, and what really happened                                              |
+| `GET /api/ledger` and `?day=2026-11-22`         | The ledger days with their hashes, or the exact lines hashed on one day                                              |
+| `GET /api/coins/search?q=fil`                   | Coin suggestions for the search box                                                                                  |
+| `GET /api/calibration`                          | The walk-forward test result                                                                                         |
+| `GET /api/health`                               | Database status and data freshness                                                                                   |
+| `POST /api/mcp`                                 | MCP server (Streamable HTTP, JSON replies, no key) with `base_rate`, `replay`, `search_coins` and `calibration`      |
+
+Try it:
+
+```sh
+curl -s 'https://been-here-before.vercel.app/api/verdict?slug=filecoin' | jq '{verdict: .verdictText, beatBtc: .summary.beatBtc}'
+
+curl -s 'https://been-here-before.vercel.app/api/then?slug=terra-luna&week=2022-04-03' | jq '{said: .verdict.verdictText, then: .actual | {ret104w, btcRet104w, beatBtc104w}}'
+
+curl -s https://been-here-before.vercel.app/api/ledger | jq '.days[0]'
+
+curl -s https://been-here-before.vercel.app/api/mcp \
+  -H 'content-type: application/json' \
+  -H 'accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"base_rate","arguments":{"coin":"filecoin"}}}'
+```
+
+Add the MCP server to Claude Code with `claude mcp add --transport http been-here-before https://been-here-before.vercel.app/api/mcp`. Agents can start from [`llms.txt`](https://been-here-before.vercel.app/llms.txt); the [OpenAPI file](https://been-here-before.vercel.app/openapi.json) covers every route.
 
 If the database cannot be reached, the 30 coins in `public/precomputed/` (saved by `pnpm data:precompute` from `/api/verdict`, with prices removed) still load, with a banner naming the save date.
 
@@ -166,16 +219,17 @@ If the database cannot be reached, the 30 coins in `public/precomputed/` (saved 
 
 ```
 scripts/ (run once)                         app (Vercel)
-  pull-history  -> data/raw/  (gitignored)    /coin/[slug]  -> lib/verdict -> Neon Postgres
-  pull-map, pull-global                       /api/*        -> lib/verdict -> Neon Postgres
-  build-panel   -> features, outcomes         /api/cron/refresh -> CMC listings/latest -> Neon
-  load          -> Neon Postgres
+  pull-history  -> data/raw/  (gitignored)    /coin/[slug], /then  -> lib/verdict -> Neon Postgres
+  pull-map, pull-global                       /api/*               -> lib/verdict -> Neon Postgres
+  build-panel   -> features, outcomes         /api/cron/refresh  (01:00 UTC) -> CMC listings/latest -> Neon
+  load          -> Neon Postgres              /api/cron/prewarm  (01:15 UTC) -> warm caches, write ledger day
   calibrate     -> walk-forward result
 ```
 
 - **Panel:** 708 weekly snapshots, 1,310,031 coin-weeks, 7,988 coins, 5,096 of which are no longer in the top 5,000.
-- **Engine** (`lib/engine/`): universe filter, lineage table for migrations (MATIC to POL, LEND to AAVE, about 30 more), features, outcomes, matching, Wilson intervals, verdict rule. Pure functions with unit tests on synthetic data.
-- **Stack:** Next.js 16 (App Router, Cache Components), React 19, TypeScript 6, Tailwind CSS 4, Drizzle ORM, Neon Postgres, zod, Vitest, Playwright, Phosphor icons. Charts are hand-made SVG.
+- **Engine** (`lib/engine/`): universe filter, lineage table for migrations (MATIC to POL, LEND to AAVE, about 30 more), features, outcomes, matching with widening steps, intervals at effective n, verdict rule. Pure functions with unit tests on synthetic data.
+- **Caching:** results are cached across serverless instances (`"use cache: remote"`), so pages load from the cache instead of the database. The prewarm cron fills it after each refresh.
+- **Stack:** Next.js 16 (App Router, Cache Components), React 19, TypeScript 6, Tailwind CSS 4, Drizzle ORM, Neon Postgres, zod, Vitest, Playwright, Phosphor icons. Charts are hand-made SVG; motion is plain CSS and turns off under reduced motion.
 
 ## Run it locally
 
@@ -196,7 +250,7 @@ pnpm data:calibrate             # walk-forward test
 pnpm dev
 ```
 
-Checks: `pnpm lint`, `pnpm typecheck`, `pnpm test` (unit), `pnpm build`, `pnpm test:e2e` (Playwright smoke, desktop and phone).
+Checks: `pnpm lint`, `pnpm typecheck`, `pnpm test` (unit), `pnpm build`, `pnpm test:e2e` (Playwright smoke, desktop and phone). CI runs lint, typecheck and unit tests on every push.
 
 No CoinMarketCap data is in this repository. Raw responses stay in `data/`, which is gitignored, and tests use synthetic fixtures.
 
@@ -206,6 +260,8 @@ No CoinMarketCap data is in this repository. Raw responses stay in `data/`, whic
 - Weekly snapshots miss moves inside a week.
 - Leaving the top 5,000 counts as a total loss, which is harsh for the few coins that come back later.
 - Before 2017 there were few coins, so early cycles have small samples.
+- Half-years next to each other still overlap, so the effective n is still a little optimistic.
+- The walk-forward gain over a plain base rate is small and its range includes zero.
 - A base rate from the past does not predict any single coin.
 
 Data provided by [CoinMarketCap.com](https://coinmarketcap.com). Not financial advice.
