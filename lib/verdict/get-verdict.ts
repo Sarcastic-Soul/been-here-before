@@ -121,6 +121,9 @@ async function candidateRows(
       beatBtc52w: coinWeeks.beatBtc52w,
       fellOut104w: coinWeeks.fellOut104w,
       reachedTop20: coinWeeks.reachedTop20_104w,
+      weeksSincePeak: coinWeeks.weeksSincePeak,
+      volume24hUsd: coinWeeks.volume24hUsd,
+      marketCapUsd: coinWeeks.marketCapUsd,
     })
     .from(coinWeeks)
     .where(
@@ -134,8 +137,13 @@ async function candidateRows(
         maxWeek === null ? undefined : lte(coinWeeks.week, maxWeek),
       ),
     );
-  return candidates.map((row) => ({
+  return candidates.map(({ volume24hUsd, marketCapUsd, ...row }) => ({
     ...row,
+    turnover:
+      volume24hUsd !== null && marketCapUsd !== null && marketCapUsd > 0
+        ? volume24hUsd / marketCapUsd
+        : null,
+    weeksSincePeak: row.weeksSincePeak ?? undefined,
     drawdown: row.drawdown ?? 0,
     ageWeeks: row.ageWeeks ?? 0,
     ret104w: row.ret104w ?? 0,

@@ -11,6 +11,7 @@ import { Section } from "@/components/section";
 import { ReceiptDrawer } from "@/components/receipt-drawer";
 import { TwinChart } from "@/components/twin-chart";
 import { VerdictSummary } from "@/components/verdict-summary";
+import { hasWinnerSplit, WinnersTable } from "@/components/winners-table";
 import { PHASES } from "@/lib/engine/cycles";
 import { median, type Rate } from "@/lib/engine/stats";
 import { MIN_EPISODES } from "@/lib/engine/verdict";
@@ -293,6 +294,16 @@ function Verdict({
             ))}
             . Phases are uneven in size, so a small row has a wide range.
           </p>
+        </Section>
+      )}
+
+      {!refused && hasWinnerSplit(data.winners) && (
+        <Section
+          id="winners"
+          title="What set the winners apart"
+          note="Facts from each episode's start week."
+        >
+          <WinnersTable split={data.winners} state={state} />
         </Section>
       )}
 

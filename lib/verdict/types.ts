@@ -3,6 +3,7 @@ import type { Phase } from "@/lib/engine/cycles";
 import type { Rate } from "@/lib/engine/stats";
 import type { Cycle } from "@/lib/engine/types";
 import type { Summary, VerdictKind } from "@/lib/engine/verdict";
+import type { WinnerSplit } from "@/lib/engine/winners";
 
 export interface CoinInfo {
   id: number;
@@ -61,6 +62,10 @@ export interface EpisodeRow {
   aliveToday?: boolean;
   /** Market phase in the start week. Missing in old saved copies. */
   phase?: Phase;
+  /** Weeks since its running peak, in the start week. Missing in old saved copies. */
+  weeksSincePeak?: number;
+  /** 24h volume divided by market cap in the start week, when both are known. */
+  turnover?: number | null;
 }
 
 export interface TwinPoint {
@@ -125,6 +130,8 @@ export interface VerdictOk {
   /** Split by market phase in each episode's start week. Missing in old saved copies. */
   byPhase?: PhaseRow[];
   market?: MarketToday;
+  /** Winners against the rest on start-week facts. Missing in old saved copies. */
+  winners?: WinnerSplit;
   twins: Twin[];
   episodes: EpisodeRow[];
   evidence: Evidence;

@@ -26,6 +26,8 @@ import {
   type EpisodeOutcome,
 } from "@/lib/engine/verdict";
 
+import { compareWinners } from "@/lib/engine/winners";
+
 import type { Bands, EpisodeRow, TwinPoint, VerdictOk } from "./types";
 
 export const HORIZON_WEEKS = 104;
@@ -38,6 +40,8 @@ export interface OutcomeRow extends CandidateRow {
   beatBtc52w: boolean | null;
   fellOut104w: boolean;
   reachedTop20: boolean;
+  weeksSincePeak?: number;
+  turnover?: number | null;
 }
 
 export function addWeeks(day: string, weeks: number): string {
@@ -108,6 +112,7 @@ export type Analysis = Pick<
   | "survivorsOnly"
   | "byCycle"
   | "byPhase"
+  | "winners"
   | "episodes"
 > & { twinEpisodes: EpisodeRow[] };
 
@@ -165,6 +170,8 @@ export function analyze(
       reachedTop20: row.reachedTop20,
       aliveToday: alive.has(row.lineageId),
       phase: phases.get(row.week),
+      weeksSincePeak: row.weeksSincePeak,
+      turnover: row.turnover,
     };
   });
 
@@ -200,6 +207,7 @@ export function analyze(
     ),
     byCycle: summarizeByCycle(outcomes),
     byPhase: summarizeByPhase(outcomes),
+    winners: compareWinners(episodes),
     episodes,
     twinEpisodes,
   };

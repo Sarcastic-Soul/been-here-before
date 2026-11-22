@@ -604,6 +604,14 @@
             "type": "string",
             "enum": ["near_peak", "correction", "bear", "recovery"],
             "description": "Market phase in the start week. Missing in old saved copies."
+          },
+          "weeksSincePeak": {
+            "type": "integer",
+            "description": "Weeks since its running peak, in the start week."
+          },
+          "turnover": {
+            "type": ["number", "null"],
+            "description": "24h volume divided by market cap in the start week."
           }
         },
         "required": [
@@ -813,6 +821,9 @@
           "savedAt": {
             "type": "string",
             "description": "Added by /api/verdict only when the database was slow or down and a saved copy was served."
+          },
+          "winners": {
+            "$ref": "#/components/schemas/WinnerSplit"
           }
         },
         "required": [
@@ -1255,6 +1266,73 @@
           },
           "message": {
             "type": "string"
+          }
+        }
+      },
+      "WinnerFeature": {
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "unit",
+          "winners",
+          "rest",
+          "higherShare",
+          "more",
+          "less"
+        ],
+        "properties": {
+          "key": {
+            "enum": [
+              "drawdown",
+              "weeksSincePeak",
+              "turnover",
+              "ageWeeks",
+              "rankAdj"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "unit": {
+            "enum": ["pct", "weeks", "rank"]
+          },
+          "winners": {
+            "type": ["number", "null"],
+            "description": "Median among episodes that beat BTC."
+          },
+          "rest": {
+            "type": ["number", "null"],
+            "description": "Median among the rest."
+          },
+          "higherShare": {
+            "type": ["number", "null"],
+            "description": "Over every winner and other pair, how often the winner had the higher value, ties counted half. 0.5 means no difference."
+          },
+          "more": {
+            "type": "string"
+          },
+          "less": {
+            "type": "string"
+          }
+        }
+      },
+      "WinnerSplit": {
+        "type": "object",
+        "description": "Display only: episodes that beat BTC against the rest, on start-week facts. Does not feed the verdict.",
+        "required": ["winners", "rest", "features"],
+        "properties": {
+          "winners": {
+            "type": "integer"
+          },
+          "rest": {
+            "type": "integer"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WinnerFeature"
+            }
           }
         }
       }

@@ -72,7 +72,6 @@ function noHindsight<T extends { aliveToday?: boolean }>(row: T): T {
   return copy;
 }
 
-
 /**
  * The verdict the site would have given for a coin in week T, using only
  * episodes whose 2-year outcome was known by then, next to what really

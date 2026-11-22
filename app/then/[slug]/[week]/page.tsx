@@ -12,6 +12,7 @@ import { CycleTable, PhaseTable } from "@/components/cycle-table";
 import { Section } from "@/components/section";
 import { TwinChart } from "@/components/twin-chart";
 import { VerdictSummary } from "@/components/verdict-summary";
+import { hasWinnerSplit, WinnersTable } from "@/components/winners-table";
 import { PHASES } from "@/lib/engine/cycles";
 import { count, longDate, pct, relativeToBtc, signedPct } from "@/lib/format";
 import { thenHref } from "@/lib/verdict/cases";
@@ -205,6 +206,20 @@ function Replay({ data }: { data: PastOk }) {
             rows={verdict.byPhase}
             current={data.market?.phase}
             currentNote="then"
+          />
+        </Section>
+      )}
+
+      {!refused && hasWinnerSplit(verdict.winners) && (
+        <Section
+          id="winners"
+          title="What set the winners apart"
+          note="Only episodes already finished that week."
+        >
+          <WinnersTable
+            split={verdict.winners}
+            state={verdict.state}
+            stateLabel={`${coin.symbol} that week`}
           />
         </Section>
       )}
