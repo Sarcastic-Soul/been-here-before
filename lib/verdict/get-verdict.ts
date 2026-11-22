@@ -20,6 +20,7 @@ import { cacheLife, cacheTag } from "next/cache";
 
 import { db } from "@/lib/db/client";
 import { coins, coinWeeks, currentState, marketWeeks } from "@/lib/db/schema";
+import type { Phase } from "@/lib/engine/cycles";
 import { BAND_STEPS, type BandStep, type MatchState } from "@/lib/engine/match";
 import { MIN_EPISODES } from "@/lib/engine/verdict";
 import { monthYear } from "@/lib/format";
@@ -33,7 +34,12 @@ import {
   twinPath,
   type OutcomeRow,
 } from "./analyze";
-import type { CoinInfo, SearchHit, VerdictResponse } from "./types";
+import type {
+  CoinInfo,
+  MarketToday,
+  SearchHit,
+  VerdictResponse,
+} from "./types";
 
 /** Verdicts cover adjusted ranks 1 to 1000 (see the method page). */
 export const MAX_RANK = 1000;
@@ -60,6 +66,38 @@ async function btcPrices(): Promise<Map<string, number>> {
     .select({ week: marketWeeks.week, btc: marketWeeks.btcPriceUsd })
     .from(marketWeeks);
   return new Map(rows.map((row) => [row.week, row.btc]));
+}
+
+/** Market phase per snapshot week, and the latest week's whole market. */
+async function marketInfo(): Promise<{
+  phases: Map<string, Phase>;
+  latest: MarketToday | null;
+}> {
+  "use cache: remote";
+  cacheLife("days");
+  cacheTag("history");
+  const rows = await db()
+    .select({
+      week: marketWeeks.week,
+      phase: marketWeeks.phase,
+      btcDominance: marketWeeks.btcDominance,
+      marketDrawdown: marketWeeks.marketDrawdown,
+    })
+    .from(marketWeeks)
+    .orderBy(asc(marketWeeks.week));
+  const last = rows.at(-1);
+  return {
+    phases: new Map(rows.map((row) => [row.week, row.phase as Phase])),
+    // market_weeks stores dominance in percent; the API uses 0 to 1.
+    latest: last
+      ? {
+          ...last,
+          phase: last.phase as Phase,
+          btcDominance:
+            last.btcDominance === null ? null : last.btcDominance / 100,
+        }
+      : null,
+  };
 }
 
 /** Rows with a finished 2-year outcome inside one step's bands (SQL prefilter). */
@@ -223,8 +261,9 @@ export async function getVerdict(slug: string): Promise<VerdictResponse> {
 
   const ids = [...new Set(rows.map((row) => row.coinId))];
   const lineages = [...new Set(rows.map((row) => row.lineageId))];
-  const [btc, labels, survivors] = await Promise.all([
+  const [btc, market, labels, survivors] = await Promise.all([
     btcPrices(),
+    marketInfo(),
     ids.length
       ? db()
           .select({ id: coins.id, name: coins.name, symbol: coins.symbol })
@@ -256,9 +295,12 @@ export async function getVerdict(slug: string): Promise<VerdictResponse> {
     rows,
     btc,
     names,
-    stepIndex,
-    tried,
-    new Set(survivors.map((row) => row.lineageId)),
+    {
+      stepIndex,
+      tried,
+      alive: new Set(survivors.map((row) => row.lineageId)),
+      phases: market.phases,
+    },
   );
 
   const twins = await Promise.all(
@@ -299,6 +341,7 @@ export async function getVerdict(slug: string): Promise<VerdictResponse> {
       ageWeeks: state.ageWeeks,
     },
     ...analysis,
+    ...(market.latest ? { market: market.latest } : {}),
     twins,
     evidence: {
       historyEndpoint: "/v1/cryptocurrency/listings/historical",

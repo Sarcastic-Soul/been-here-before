@@ -15,11 +15,13 @@ import {
   type CandidateRow,
   type MatchState,
 } from "@/lib/engine/match";
+import type { Phase } from "@/lib/engine/cycles";
 import { clusteredRate, halfYear } from "@/lib/engine/stats";
 import {
   decide,
   summarize,
   summarizeByCycle,
+  summarizeByPhase,
   VERDICT_TEXT,
   type EpisodeOutcome,
 } from "@/lib/engine/verdict";
@@ -98,8 +100,20 @@ export type Analysis = Pick<
   | "beatBtc1y"
   | "survivorsOnly"
   | "byCycle"
+  | "byPhase"
   | "episodes"
 > & { twinEpisodes: EpisodeRow[] };
+
+export interface AnalyzeOptions {
+  /** Which BAND_STEPS entry the rows were matched with. */
+  stepIndex?: number;
+  /** Episodes found at each step tried before this one. */
+  tried?: readonly number[];
+  /** Lineages still in the latest weekly top 5,000. */
+  alive?: ReadonlySet<number>;
+  /** Market phase per snapshot week. */
+  phases?: ReadonlyMap<string, Phase>;
+}
 
 /**
  * @param target      today's state of the coin being asked about
@@ -107,9 +121,6 @@ export type Analysis = Pick<
  * @param rows        candidate rows with a finished 2-year outcome
  * @param btcByWeek   BTC price per snapshot week
  * @param names       name and symbol per CMC id, for display
- * @param stepIndex   which BAND_STEPS entry the rows were matched with
- * @param tried       episodes found at each step tried before this one
- * @param alive       lineages still in the latest weekly top 5,000
  */
 export function analyze(
   target: MatchState,
@@ -117,9 +128,12 @@ export function analyze(
   rows: readonly OutcomeRow[],
   btcByWeek: ReadonlyMap<string, number>,
   names: ReadonlyMap<number, { name: string; symbol: string }>,
-  stepIndex = 0,
-  tried: readonly number[] = [],
-  alive: ReadonlySet<number> = new Set(),
+  {
+    stepIndex = 0,
+    tried = [],
+    alive = new Set(),
+    phases = new Map(),
+  }: AnalyzeOptions = {},
 ): Analysis {
   const picked = selectEpisodes(rows, target, lineageId, BAND_STEPS[stepIndex]);
   const episodes: EpisodeRow[] = picked.map((row) => {
@@ -143,12 +157,14 @@ export function analyze(
       fellOut104w: row.fellOut104w,
       reachedTop20: row.reachedTop20,
       aliveToday: alive.has(row.lineageId),
+      phase: phases.get(row.week),
     };
   });
 
   const outcomes: EpisodeOutcome[] = episodes.map((e) => ({
     lineageId: e.lineageId,
     week: e.week,
+    phase: e.phase,
     cycle: e.cycle,
     beatBtc: e.beatBtc104w,
     fellOut: e.fellOut104w,
@@ -176,6 +192,7 @@ export function analyze(
       (e) => halfYear(e.week),
     ),
     byCycle: summarizeByCycle(outcomes),
+    byPhase: summarizeByPhase(outcomes),
     episodes,
     twinEpisodes,
   };

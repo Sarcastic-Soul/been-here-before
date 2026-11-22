@@ -4,12 +4,13 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { CoinSearch } from "@/components/coin-search";
-import { CycleTable } from "@/components/cycle-table";
+import { CycleTable, PhaseTable } from "@/components/cycle-table";
 import { EpisodeTable } from "@/components/episode-table";
 import { RateBar } from "@/components/rate-bar";
 import { ReceiptDrawer } from "@/components/receipt-drawer";
 import { TwinChart } from "@/components/twin-chart";
 import { VerdictSummary } from "@/components/verdict-summary";
+import { PHASES } from "@/lib/engine/cycles";
 import { median, type Rate } from "@/lib/engine/stats";
 import { MIN_EPISODES } from "@/lib/engine/verdict";
 import {
@@ -295,6 +296,28 @@ function Verdict({
         </Section>
       )}
 
+      {!refused && data.byPhase && data.byPhase.length > 0 && (
+        <Section
+          id="market"
+          title="By market phase"
+          note={<MarketNote data={data} />}
+        >
+          <PhaseTable rows={data.byPhase} current={data.market?.phase} />
+          <p className="text-muted mt-4 max-w-[68ch] text-[13px]">
+            Phase of the whole market in the week each episode started, from
+            total market cap:{" "}
+            {PHASES.map((p, i) => (
+              <span key={p.phase}>
+                {i > 0 && "; "}
+                <span className="text-ink-body">{p.label.toLowerCase()}</span>{" "}
+                means {p.rule}
+              </span>
+            ))}
+            . Phases are uneven in size, so a small row has a wide range.
+          </p>
+        </Section>
+      )}
+
       {data.episodes.length > 0 && (
         <Section
           id="episodes"
@@ -325,6 +348,26 @@ function Verdict({
         </Link>
       </p>
     </article>
+  );
+}
+
+/** One line on today's whole market, next to the phase split. */
+function MarketNote({ data }: { data: VerdictOk }) {
+  const market = data.market;
+  if (!market) return "Does the answer change with the whole market's mood?";
+  const label = PHASES.find((p) => p.phase === market.phase)?.label;
+  return (
+    <>
+      In the week of {longDate(market.week)} the whole market was in{" "}
+      <span className="text-ink font-medium">{label?.toLowerCase()}</span>
+      {market.marketDrawdown !== null && (
+        <>, {pct(market.marketDrawdown)} below its peak</>
+      )}
+      {market.btcDominance !== null && (
+        <>, with BTC at {pct(market.btcDominance)} of total market cap</>
+      )}
+      .
+    </>
   );
 }
 

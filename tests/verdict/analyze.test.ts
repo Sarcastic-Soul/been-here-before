@@ -79,10 +79,40 @@ describe("analyze", () => {
     );
     // The 6 winners and 4 of the losers are still listed today.
     const alive = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-    const result = analyze(target, 999, rows, btc, new Map(), 0, [], alive);
+    const result = analyze(target, 999, rows, btc, new Map(), { alive });
     expect(result.summary.beatBtc).toMatchObject({ k: 6, n: 30 });
     expect(result.survivorsOnly).toMatchObject({ k: 6, n: 10, p: 0.6 });
     expect(result.episodes.filter((e) => e.aliveToday)).toHaveLength(10);
+  });
+
+  it("tags each episode with its market phase and splits by phase", () => {
+    const rows = [
+      ...Array.from({ length: 25 }, (_, i) =>
+        row(i + 1, "2018-01-07", { beatBtc104w: i < 5 }),
+      ),
+      ...Array.from({ length: 15 }, (_, i) =>
+        row(i + 101, "2019-01-06", { beatBtc104w: i < 9 }),
+      ),
+      row(50, "2020-01-05"),
+    ];
+    const phases = new Map([
+      ["2018-01-07", "near_peak" as const],
+      ["2019-01-06", "bear" as const],
+    ]);
+    const result = analyze(target, 999, rows, btc, new Map(), { phases });
+    expect(result.episodes.find((e) => e.week === "2019-01-06")?.phase).toBe(
+      "bear",
+    );
+    // A week with no known phase is left out of the split, not guessed.
+    expect(result.episodes.find((e) => e.week === "2020-01-05")?.phase).toBe(
+      undefined,
+    );
+    expect(
+      result.byPhase?.map((p) => [p.phase, p.summary.n, p.summary.beatBtc.k]),
+    ).toEqual([
+      ["near_peak", 25, 5],
+      ["bear", 15, 9],
+    ]);
   });
 
   it("leaves out the coin's own lineage and rows outside the bands", () => {
@@ -102,7 +132,10 @@ describe("analyze", () => {
     ];
     expect(episodeCount(rows, target, 999, 0)).toBe(1);
     expect(episodeCount(rows, target, 999, 1)).toBe(2);
-    const result = analyze(target, 999, rows, btc, new Map(), 1, [1, 2]);
+    const result = analyze(target, 999, rows, btc, new Map(), {
+      stepIndex: 1,
+      tried: [1, 2],
+    });
     expect(result.summary.n).toBe(2);
     expect(result.bands).toMatchObject({
       step: 1,

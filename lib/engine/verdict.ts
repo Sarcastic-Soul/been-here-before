@@ -1,4 +1,4 @@
-import { CYCLES } from "./cycles";
+import { CYCLES, PHASES, type Phase } from "./cycles";
 import { clusteredRate, halfYear, median, type Rate } from "./stats";
 import type { Cycle } from "./types";
 
@@ -12,6 +12,8 @@ export interface EpisodeOutcome {
   lineageId: number;
   /** Start week, used to group episodes that share a market. */
   week: string;
+  /** Market phase in the start week, when known. */
+  phase?: Phase;
   cycle: Cycle;
   beatBtc: boolean;
   fellOut: boolean;
@@ -70,6 +72,16 @@ export function summarizeByCycle(
     cycle,
     label,
     summary: summarize(episodes.filter((e) => e.cycle === cycle)),
+  })).filter((entry) => entry.summary.n > 0);
+}
+
+export function summarizeByPhase(
+  episodes: readonly EpisodeOutcome[],
+): { phase: Phase; label: string; summary: Summary }[] {
+  return PHASES.map(({ phase, label }) => ({
+    phase,
+    label,
+    summary: summarize(episodes.filter((e) => e.phase === phase)),
   })).filter((entry) => entry.summary.n > 0);
 }
 

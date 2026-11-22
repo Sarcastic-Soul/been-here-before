@@ -1,0 +1,1231 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Been Here Before API",
+    "version": "1.0.0",
+    "description": "Historical base rates for crypto coins from weekly CoinMarketCap snapshots. Past coins in the same spot, and how many beat holding BTC over the next 2 years. A base rate, not a forecast and not financial advice. No key needed. These routes read only from our own database and never call CoinMarketCap."
+  },
+  "servers": [
+    {
+      "url": "https://been-here-before.vercel.app"
+    }
+  ],
+  "paths": {
+    "/api/verdict": {
+      "get": {
+        "operationId": "getVerdict",
+        "summary": "Verdict for one coin",
+        "description": "Returns the full result for a CMC slug. A refused coin returns status not_found, excluded, not_covered, benchmark or moved. A symbol such as fil returns moved with the slug to use. Status is 404 only for not_found.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]{1,100}$"
+            },
+            "example": "filecoin"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A verdict or a refusal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/VerdictOk"
+                    },
+                    {
+                      "$ref": "#/components/schemas/VerdictRefused"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or bad slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No coin with that slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerdictRefused"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The database did not answer and no saved copy exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/coins/search": {
+      "get": {
+        "operationId": "searchCoins",
+        "summary": "Find a coin",
+        "description": "Matches symbol, name or slug. Live coins first. Up to 10 hits.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
+            },
+            "example": "fil"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching coins.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SearchHit"
+                      }
+                    }
+                  },
+                  "required": [
+                    "results"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or bad q.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/calibration": {
+      "get": {
+        "operationId": "getCalibration",
+        "summary": "Walk-forward test of the verdicts",
+        "description": "Replays the method at the start of every quarter from 2018 and checks what happened over the next 2 years.",
+        "responses": {
+          "200": {
+            "description": "The test results.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Calibration"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The test has not run yet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Database and data freshness",
+        "responses": {
+          "200": {
+            "description": "Database reachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": false
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ok",
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp": {
+      "post": {
+        "operationId": "mcp",
+        "summary": "MCP server (Streamable HTTP, JSON replies, no sessions)",
+        "description": "Model Context Protocol endpoint. Supports initialize, notifications/initialized (202, empty body), ping, tools/list and tools/call. Tools: base_rate (input coin), search_coins (input query), calibration (no input). GET returns 405 with Allow: POST.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A JSON-RPC result or error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpResponse"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Notification accepted. Empty body."
+          },
+          "400": {
+            "description": "Parse error or invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false
+      },
+      "Rate": {
+        "type": "object",
+        "properties": {
+          "k": {
+            "type": "integer",
+            "description": "Episodes that hit."
+          },
+          "n": {
+            "type": "integer",
+            "description": "Episodes counted."
+          },
+          "p": {
+            "type": "number",
+            "description": "k / n."
+          },
+          "lo": {
+            "type": "number",
+            "description": "Lower end of the 95% range."
+          },
+          "hi": {
+            "type": "number",
+            "description": "Upper end of the 95% range."
+          },
+          "nEff": {
+            "type": "number",
+            "description": "Effective number of independent episodes behind lo and hi, after allowing for episodes that bunch in time. Missing for plain Wilson rates and in old saved copies."
+          }
+        },
+        "required": [
+          "k",
+          "n",
+          "p",
+          "lo",
+          "hi"
+        ],
+        "additionalProperties": false
+      },
+      "CoinInfo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "lineageId": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string",
+            "description": "CoinMarketCap slug."
+          },
+          "status": {
+            "type": "string"
+          },
+          "dateAdded": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "lineageId",
+          "name",
+          "symbol",
+          "slug",
+          "status",
+          "dateAdded"
+        ],
+        "additionalProperties": false
+      },
+      "CoinState": {
+        "type": "object",
+        "properties": {
+          "asOf": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "weekly",
+              "daily"
+            ]
+          },
+          "rankAdj": {
+            "type": "integer",
+            "description": "Rank among coins that are not stablecoins, wrapped, bridged or staked tokens."
+          },
+          "rankRaw": {
+            "type": "integer"
+          },
+          "priceUsd": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Null in saved copies, which keep derived statistics only."
+          },
+          "marketCapUsd": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Null in saved copies."
+          },
+          "drawdown": {
+            "type": "number",
+            "description": "1 - price / peak so far."
+          },
+          "weeksSincePeak": {
+            "type": "integer"
+          },
+          "ageWeeks": {
+            "type": "integer",
+            "description": "Weeks since the CMC listing."
+          }
+        },
+        "required": [
+          "asOf",
+          "source",
+          "rankAdj",
+          "rankRaw",
+          "priceUsd",
+          "marketCapUsd",
+          "drawdown",
+          "weeksSincePeak",
+          "ageWeeks"
+        ],
+        "additionalProperties": false
+      },
+      "Bands": {
+        "type": "object",
+        "properties": {
+          "rankMin": {
+            "type": "number"
+          },
+          "rankMax": {
+            "type": "number"
+          },
+          "drawdownMin": {
+            "type": "number"
+          },
+          "drawdownMax": {
+            "type": "number"
+          },
+          "ageLabel": {
+            "type": "string"
+          },
+          "step": {
+            "type": "integer",
+            "description": "Which band step was used. 0 is the standard match. Missing in old saved copies."
+          },
+          "rankFactor": {
+            "type": "number"
+          },
+          "drawdownBand": {
+            "type": "number"
+          },
+          "tried": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "Episodes found at each step tried, in order."
+          }
+        },
+        "required": [
+          "rankMin",
+          "rankMax",
+          "drawdownMin",
+          "drawdownMax",
+          "ageLabel"
+        ],
+        "additionalProperties": false
+      },
+      "Summary": {
+        "type": "object",
+        "properties": {
+          "n": {
+            "type": "integer"
+          },
+          "distinctCoins": {
+            "type": "integer"
+          },
+          "clusters": {
+            "type": "integer",
+            "description": "Calendar half-years the episodes start in. Missing in old saved copies."
+          },
+          "beatBtc": {
+            "$ref": "#/components/schemas/Rate"
+          },
+          "reachedTop20": {
+            "$ref": "#/components/schemas/Rate"
+          },
+          "fellOut": {
+            "$ref": "#/components/schemas/Rate"
+          },
+          "medianCoinReturn": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "medianExcessReturn": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "n",
+          "distinctCoins",
+          "beatBtc",
+          "reachedTop20",
+          "fellOut",
+          "medianCoinReturn",
+          "medianExcessReturn"
+        ],
+        "additionalProperties": false
+      },
+      "EpisodeRow": {
+        "type": "object",
+        "properties": {
+          "lineageId": {
+            "type": "integer"
+          },
+          "coinId": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "week": {
+            "type": "string",
+            "description": "Start week (date)."
+          },
+          "cycle": {
+            "type": "string",
+            "enum": [
+              "2012-16",
+              "2016-20",
+              "2020-24",
+              "2024-28"
+            ]
+          },
+          "rankAdj": {
+            "type": "integer"
+          },
+          "drawdown": {
+            "type": "number"
+          },
+          "ageWeeks": {
+            "type": "integer"
+          },
+          "ret104w": {
+            "type": "number",
+            "description": "The coin's return over the next 104 weeks."
+          },
+          "btcRet104w": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "beatBtc104w": {
+            "type": "boolean"
+          },
+          "beatBtc52w": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "fellOut104w": {
+            "type": "boolean",
+            "description": "Left the top 5,000 within the 2 years, counted as a total loss."
+          },
+          "reachedTop20": {
+            "type": "boolean"
+          },
+          "aliveToday": {
+            "type": "boolean",
+            "description": "Its lineage is in the latest weekly top 5,000. Missing in old saved copies."
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "near_peak",
+              "correction",
+              "bear",
+              "recovery"
+            ],
+            "description": "Market phase in the start week. Missing in old saved copies."
+          }
+        },
+        "required": [
+          "lineageId",
+          "coinId",
+          "name",
+          "symbol",
+          "week",
+          "cycle",
+          "rankAdj",
+          "drawdown",
+          "ageWeeks",
+          "ret104w",
+          "btcRet104w",
+          "beatBtc104w",
+          "beatBtc52w",
+          "fellOut104w",
+          "reachedTop20"
+        ],
+        "additionalProperties": false
+      },
+      "TwinPoint": {
+        "type": "object",
+        "properties": {
+          "t": {
+            "type": "integer",
+            "description": "Weeks after the episode start."
+          },
+          "vsBtc": {
+            "type": "number",
+            "description": "Coin price relative to BTC, 100 at the start."
+          }
+        },
+        "required": [
+          "t",
+          "vsBtc"
+        ],
+        "additionalProperties": false
+      },
+      "Twin": {
+        "type": "object",
+        "properties": {
+          "episode": {
+            "$ref": "#/components/schemas/EpisodeRow"
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TwinPoint"
+            }
+          }
+        },
+        "required": [
+          "episode",
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "CycleRow": {
+        "type": "object",
+        "properties": {
+          "cycle": {
+            "type": "string",
+            "enum": [
+              "2012-16",
+              "2016-20",
+              "2020-24",
+              "2024-28"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/Summary"
+          }
+        },
+        "required": [
+          "cycle",
+          "label",
+          "summary"
+        ],
+        "additionalProperties": false
+      },
+      "PhaseRow": {
+        "type": "object",
+        "properties": {
+          "phase": {
+            "type": "string",
+            "enum": [
+              "near_peak",
+              "correction",
+              "bear",
+              "recovery"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/Summary"
+          }
+        },
+        "required": [
+          "phase",
+          "label",
+          "summary"
+        ],
+        "additionalProperties": false
+      },
+      "MarketToday": {
+        "type": "object",
+        "description": "The whole market in the latest weekly snapshot.",
+        "properties": {
+          "week": {
+            "type": "string",
+            "format": "date"
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "near_peak",
+              "correction",
+              "bear",
+              "recovery"
+            ]
+          },
+          "btcDominance": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "BTC share of total market cap, 0 to 1."
+          },
+          "marketDrawdown": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Total market cap below its peak so far, 0 to 1."
+          }
+        },
+        "required": [
+          "week",
+          "phase",
+          "btcDominance",
+          "marketDrawdown"
+        ],
+        "additionalProperties": false
+      },
+      "Evidence": {
+        "type": "object",
+        "properties": {
+          "historyEndpoint": {
+            "type": "string"
+          },
+          "stateEndpoint": {
+            "type": "string"
+          },
+          "stateSnapshot": {
+            "type": "string"
+          },
+          "firstWeek": {
+            "type": "string"
+          },
+          "lastWeek": {
+            "type": "string"
+          },
+          "lastCompleteStart": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "historyEndpoint",
+          "stateEndpoint",
+          "stateSnapshot",
+          "firstWeek",
+          "lastWeek",
+          "lastCompleteStart"
+        ],
+        "additionalProperties": false
+      },
+      "VerdictOk": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "const": "ok"
+          },
+          "coin": {
+            "$ref": "#/components/schemas/CoinInfo"
+          },
+          "state": {
+            "$ref": "#/components/schemas/CoinState"
+          },
+          "bands": {
+            "$ref": "#/components/schemas/Bands"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "not_enough_history",
+              "rotate",
+              "hold",
+              "no_clear_edge"
+            ]
+          },
+          "verdictText": {
+            "type": "string",
+            "description": "Plain-English verdict."
+          },
+          "summary": {
+            "$ref": "#/components/schemas/Summary"
+          },
+          "beatBtc1y": {
+            "$ref": "#/components/schemas/Rate"
+          },
+          "survivorsOnly": {
+            "$ref": "#/components/schemas/Rate",
+            "description": "The 2-year beat-BTC rate counting only episodes whose coin is still in the top 5,000 today. Missing in old saved copies."
+          },
+          "byCycle": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CycleRow"
+            }
+          },
+          "byPhase": {
+            "type": "array",
+            "description": "Split by market phase in each episode's start week. Missing in old saved copies.",
+            "items": {
+              "$ref": "#/components/schemas/PhaseRow"
+            }
+          },
+          "market": {
+            "$ref": "#/components/schemas/MarketToday"
+          },
+          "twins": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Twin"
+            }
+          },
+          "episodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EpisodeRow"
+            }
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/Evidence"
+          },
+          "savedAt": {
+            "type": "string",
+            "description": "Added by /api/verdict only when the database was slow or down and a saved copy was served."
+          }
+        },
+        "required": [
+          "status",
+          "coin",
+          "state",
+          "bands",
+          "verdict",
+          "verdictText",
+          "summary",
+          "beatBtc1y",
+          "byCycle",
+          "twins",
+          "episodes",
+          "evidence"
+        ],
+        "additionalProperties": false
+      },
+      "VerdictRefused": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_found",
+              "excluded",
+              "not_covered",
+              "benchmark",
+              "moved"
+            ]
+          },
+          "coin": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CoinInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "movedTo": {
+            "type": "object",
+            "properties": {
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "slug",
+              "name"
+            ],
+            "additionalProperties": false
+          },
+          "lastSeen": {
+            "type": "string",
+            "description": "For a coin no longer in the snapshots: the last week it was seen."
+          }
+        },
+        "required": [
+          "status",
+          "coin",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "SearchHit": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "rankAdj": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "live": {
+            "type": "boolean",
+            "description": "In today's snapshot."
+          },
+          "excluded": {
+            "type": "boolean",
+            "description": "Stablecoin, wrapped token or similar."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "symbol",
+          "slug",
+          "rankAdj",
+          "live",
+          "excluded"
+        ],
+        "additionalProperties": false
+      },
+      "YearScore": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer"
+          },
+          "n": {
+            "type": "integer"
+          },
+          "brier": {
+            "type": "number"
+          },
+          "brierBaseline": {
+            "type": "number"
+          },
+          "gain": {
+            "type": "number",
+            "description": "1 - brier / brierBaseline."
+          }
+        },
+        "required": [
+          "year",
+          "n",
+          "brier",
+          "brierBaseline",
+          "gain"
+        ],
+        "additionalProperties": false
+      },
+      "Calibration": {
+        "type": "object",
+        "properties": {
+          "horizon": {
+            "type": "integer",
+            "description": "Weeks."
+          },
+          "tested": {
+            "type": "integer",
+            "description": "Coin-dates tested."
+          },
+          "predicted": {
+            "type": "integer",
+            "description": "Coin-dates that got a prediction."
+          },
+          "brier": {
+            "type": "number"
+          },
+          "brierBaseline": {
+            "type": "number"
+          },
+          "verdicts": {
+            "type": "object",
+            "description": "By verdict: how many were given and how many of those beat BTC.",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "n": {
+                  "type": "integer"
+                },
+                "beat": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "n",
+                "beat"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "example": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          },
+          "reliability": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "bucket": {
+                  "type": "string"
+                },
+                "predicted": {
+                  "type": "number"
+                },
+                "realized": {
+                  "type": "number"
+                },
+                "n": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "bucket",
+                "predicted",
+                "realized",
+                "n"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "detail": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "gain": {
+                    "type": "number"
+                  },
+                  "gainInterval": {
+                    "type": "object",
+                    "properties": {
+                      "lo": {
+                        "type": "number"
+                      },
+                      "hi": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "lo",
+                      "hi"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "byYear": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/YearScore"
+                    }
+                  },
+                  "steps": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    },
+                    "description": "Predictions per widening step; index 0 is the standard match."
+                  }
+                },
+                "required": [
+                  "gain",
+                  "gainInterval",
+                  "byYear",
+                  "steps"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "computedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "horizon",
+          "tested",
+          "predicted",
+          "brier",
+          "brierBaseline",
+          "verdicts",
+          "example",
+          "reliability",
+          "detail",
+          "computedAt"
+        ],
+        "additionalProperties": false
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "lastWeek": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Latest weekly snapshot."
+          },
+          "stateAsOf": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When today's state was last refreshed."
+          },
+          "liveCoins": {
+            "type": "integer"
+          },
+          "stateAgeHours": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "ok",
+          "lastWeek",
+          "stateAsOf",
+          "liveCoins",
+          "stateAgeHours"
+        ],
+        "additionalProperties": false
+      },
+      "McpRequest": {
+        "type": "object",
+        "description": "A single JSON-RPC 2.0 request or notification. Batches are not supported.",
+        "properties": {
+          "jsonrpc": {
+            "const": "2.0"
+          },
+          "id": {
+            "type": [
+              "string",
+              "integer"
+            ],
+            "description": "Leave out for a notification."
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "initialize",
+              "notifications/initialized",
+              "ping",
+              "tools/list",
+              "tools/call"
+            ]
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "jsonrpc",
+          "method"
+        ]
+      },
+      "McpResponse": {
+        "type": "object",
+        "description": "A JSON-RPC 2.0 result or error. Error codes: -32700 parse, -32600 invalid request, -32601 method not found, -32602 invalid params.",
+        "properties": {
+          "jsonrpc": {
+            "const": "2.0"
+          },
+          "id": {
+            "type": [
+              "string",
+              "integer",
+              "null"
+            ]
+          },
+          "result": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "integer"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "jsonrpc",
+          "id"
+        ]
+      }
+    }
+  }
+}

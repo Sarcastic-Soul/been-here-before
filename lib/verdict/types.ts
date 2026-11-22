@@ -1,4 +1,5 @@
 /** Response shapes shared by the API routes and the UI. Safe to import anywhere. */
+import type { Phase } from "@/lib/engine/cycles";
 import type { Rate } from "@/lib/engine/stats";
 import type { Cycle } from "@/lib/engine/types";
 import type { Summary, VerdictKind } from "@/lib/engine/verdict";
@@ -58,6 +59,8 @@ export interface EpisodeRow {
   reachedTop20: boolean;
   /** Its lineage is in the latest weekly top 5,000. Missing in old saved copies. */
   aliveToday?: boolean;
+  /** Market phase in the start week. Missing in old saved copies. */
+  phase?: Phase;
 }
 
 export interface TwinPoint {
@@ -76,6 +79,22 @@ export interface CycleRow {
   cycle: Cycle;
   label: string;
   summary: Summary;
+}
+
+export interface PhaseRow {
+  phase: Phase;
+  label: string;
+  summary: Summary;
+}
+
+/** The whole market in the latest weekly snapshot. */
+export interface MarketToday {
+  week: string;
+  phase: Phase;
+  /** BTC share of total market cap, 0 to 1. */
+  btcDominance: number | null;
+  /** Total market cap below its peak so far, 0 to 1. */
+  marketDrawdown: number | null;
 }
 
 export interface Evidence {
@@ -103,6 +122,9 @@ export interface VerdictOk {
    */
   survivorsOnly?: Rate;
   byCycle: CycleRow[];
+  /** Split by market phase in each episode's start week. Missing in old saved copies. */
+  byPhase?: PhaseRow[];
+  market?: MarketToday;
   twins: Twin[];
   episodes: EpisodeRow[];
   evidence: Evidence;

@@ -1,0 +1,63 @@
+# Been Here Before
+
+> Type a coin and see every past coin that stood in the same spot (adjusted rank, drawdown from its peak, age since listing) in weekly CoinMarketCap snapshots from April 2013, dead coins included, and how many of them beat simply holding BTC over the next 2 years. It gives a count, a 95% range, the five closest "twins" and a plain verdict. It is a historical base rate, not a forecast and not financial advice. Built for the Build with CMC API Hackathon, Round 2 (DoraHacks).
+
+Base URL: https://been-here-before.vercel.app
+
+## Pages
+
+- [Home](https://been-here-before.vercel.app/): search for a coin.
+- [Filecoin example](https://been-here-before.vercel.app/coin/filecoin): one coin page. Replace `filecoin` with any CoinMarketCap slug.
+- [Method](https://been-here-before.vercel.app/method): the matching rules, the verdict thresholds and the walk-forward test of how well the verdicts held up.
+
+## JSON API
+
+All routes are GET, need no key, and read only from our own database. They never call CoinMarketCap.
+
+- [/api/verdict?slug=filecoin](https://been-here-before.vercel.app/api/verdict?slug=filecoin): full result for one coin: today's state, bands used, verdict, summary, split by halving cycle, twins and every episode. Returns `status` "ok" or a refusal (`not_found`, `excluded`, `not_covered`, `benchmark`, `moved`).
+- [/api/coins/search?q=fil](https://been-here-before.vercel.app/api/coins/search?q=fil): find a coin by symbol, name or slug. Returns up to 10 hits.
+- [/api/calibration](https://been-here-before.vercel.app/api/calibration): the walk-forward test of the method since 2018.
+- [/api/health](https://been-here-before.vercel.app/api/health): database status and how fresh the data is.
+
+## MCP server
+
+A remote MCP server (Streamable HTTP, JSON replies, no sessions, no key) at https://been-here-before.vercel.app/api/mcp. Send JSON-RPC 2.0 with POST. GET returns 405.
+
+Tools:
+
+- `base_rate`: input `{ "coin": "filecoin" }` (a slug or a symbol such as "FIL"). Returns the compact base rate for that coin.
+- `search_coins`: input `{ "query": "fil" }`. Returns up to 8 matching coins.
+- `calibration`: no input. Returns the summary of the walk-forward test.
+
+To add it to an MCP client as a remote HTTP server, point the client at the URL. For example, with Claude Code:
+
+    claude mcp add --transport http been-here-before https://been-here-before.vercel.app/api/mcp
+
+Or in a JSON config that supports remote servers:
+
+    {
+      "mcpServers": {
+        "been-here-before": {
+          "type": "http",
+          "url": "https://been-here-before.vercel.app/api/mcp"
+        }
+      }
+    }
+
+Quick check with curl:
+
+    curl -s https://been-here-before.vercel.app/api/mcp \
+      -H 'content-type: application/json' \
+      -H 'accept: application/json, text/event-stream' \
+      -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"base_rate","arguments":{"coin":"filecoin"}}}'
+
+## Reference
+
+- [OpenAPI description](https://been-here-before.vercel.app/openapi.json): OpenAPI 3.1 file for the routes above and the MCP endpoint.
+- [Source code](https://github.com/Sarcastic-Soul/been-here-before): GitHub repository, with the README and the list of CoinMarketCap endpoints used.
+
+## Notes for agents
+
+- Every result is a base rate from past coins. Do not present it as a prediction or as advice.
+- The data comes from weekly CoinMarketCap snapshots. Stablecoins, wrapped tokens and BTC itself are refused. Coins outside adjusted rank 1 to 1,000 are refused.
+- A symbol in `/api/verdict` returns `status: "moved"` with `movedTo.slug`. Call again with that slug.

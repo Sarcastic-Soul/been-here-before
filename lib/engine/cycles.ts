@@ -16,6 +16,30 @@ export function cycleOf(day: string): Cycle {
 
 export type Phase = "near_peak" | "correction" | "bear" | "recovery";
 
+/** Market phases in display order, with the rule behind each. */
+export const PHASES: readonly { phase: Phase; label: string; rule: string }[] = [
+  {
+    phase: "near_peak",
+    label: "Near the peak",
+    rule: "total market cap less than 20% below its peak so far",
+  },
+  {
+    phase: "correction",
+    label: "Correction",
+    rule: "total market cap 20% to 50% below its peak so far",
+  },
+  {
+    phase: "bear",
+    label: "Bear market",
+    rule: "total market cap more than 50% below its peak so far",
+  },
+  {
+    phase: "recovery",
+    label: "Recovery",
+    rule: "more than 20% below the peak, but higher than a year earlier",
+  },
+];
+
 /**
  * Market phase from total market cap, using only weeks up to each point.
  * Recovery: drawdown over 20% but market cap up over the last 52 weeks.
