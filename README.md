@@ -71,7 +71,25 @@ Total so far: about 20,400 credits for the one-time history, then 8 credits a da
 
 ## Evidence of a real API call
 
-The daily cron made this call on 22 Nov 2026. The request and the response's `status` block, as stored in the `cmc_receipts` table:
+The code: the daily cron ([`lib/cron/refresh.ts`](lib/cron/refresh.ts)) makes one call through the shared client ([`lib/cmc/client.ts`](lib/cmc/client.ts)), which sends the key only in the `X-CMC_PRO_API_KEY` header, so the saved request URL never contains it.
+
+```ts
+// lib/cron/refresh.ts (constants written out)
+result = await cmcGet<RawListing[]>("/v1/cryptocurrency/listings/latest", {
+  start: 1,
+  limit: 2000,
+  convert: "USD",
+  aux: "tags,platform,date_added,cmc_rank",
+});
+
+// lib/cmc/client.ts
+response = await fetch(requestUrl, {
+  headers: { Accept: "application/json", "X-CMC_PRO_API_KEY": apiKey() },
+  cache: "no-store",
+});
+```
+
+The response: the cron ran this call on 22 Nov 2026. The request and the response's `status` block, as stored in the `cmc_receipts` table:
 
 ```
 GET https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?start=1&limit=2000&convert=USD&aux=tags%2Cplatform%2Cdate_added%2Ccmc_rank
