@@ -3,6 +3,8 @@ import "server-only";
 import { z } from "zod";
 
 import { getCalibration } from "@/lib/calibration/get-calibration";
+import { snapToSunday } from "@/lib/verdict/analyze";
+import { getPastVerdict } from "@/lib/verdict/get-past-verdict";
 import { searchCoins } from "@/lib/verdict/get-verdict";
 import { getVerdictOrSaved } from "@/lib/verdict/saved";
 import type { VerdictOk, VerdictRefused } from "@/lib/verdict/types";
@@ -46,6 +48,16 @@ const BaseRateArgs = z.object({
     .transform((value) => value.toLowerCase())
     .refine((value) => Slug.test(value), {
       message: "coin must be a CMC slug like filecoin, or a symbol like FIL",
+    }),
+});
+
+const ReplayArgs = z.object({
+  coin: BaseRateArgs.shape.coin,
+  week: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "week must be YYYY-MM-DD" })
+    .refine((day) => !Number.isNaN(Date.parse(`${day}T00:00:00Z`)), {
+      message: "week must be a real date",
     }),
 });
 
@@ -149,6 +161,78 @@ const baseRate: Tool = {
   },
 };
 
+const replay: Tool = {
+  name: "replay",
+  description:
+    "Time machine: the verdict Been Here Before would have given for a coin in a past week, using only past coins whose 2-year outcome was already known then, next to what really happened over the following 2 years and whether the call held up. Needs the coin's CMC slug (use search_coins first for a symbol).",
+  inputSchema: {
+    type: "object",
+    properties: {
+      coin: {
+        type: "string",
+        description: 'CoinMarketCap slug such as "terra-luna".',
+      },
+      week: {
+        type: "string",
+        description:
+          "A date, YYYY-MM-DD, from 2015-05-10 on. It snaps to the Sunday snapshot on or before it.",
+      },
+    },
+    required: ["coin", "week"],
+    additionalProperties: false,
+  },
+  args: ReplayArgs,
+  run: async ({ coin, week }: z.infer<typeof ReplayArgs>) => {
+    try {
+      const data = await getPastVerdict(coin, snapToSunday(week));
+      if (data.status !== "ok")
+        return json({ status: data.status, message: data.message, note: NOTE });
+      const { verdict, actual } = data;
+      const call = verdict.verdict;
+      const scored = call === "rotate" || call === "hold";
+      return json({
+        coin: {
+          name: verdict.coin.name,
+          symbol: verdict.coin.symbol,
+          slug: verdict.coin.slug,
+        },
+        week: data.asOf,
+        then: {
+          rank: verdict.state.rankAdj,
+          drawdown: verdict.state.drawdown,
+          ageWeeks: verdict.state.ageWeeks,
+          marketPhase: data.market?.phase ?? null,
+        },
+        verdict: call,
+        verdictText: verdict.verdictText,
+        beatBtc: {
+          k: verdict.summary.beatBtc.k,
+          n: verdict.summary.beatBtc.n,
+          lo: verdict.summary.beatBtc.lo,
+          hi: verdict.summary.beatBtc.hi,
+        },
+        episodesStartedBy: data.cutoff,
+        actual: {
+          complete: actual.complete,
+          return2y: actual.ret104w,
+          btcReturn2y: actual.btcRet104w,
+          beatBtc: actual.beatBtc104w,
+          fellOut: actual.fellOut104w,
+        },
+        callHeldUp:
+          scored && actual.beatBtc104w !== null
+            ? (call === "hold") === actual.beatBtc104w
+            : null,
+        url: `${SITE}/then/${verdict.coin.slug}/${data.asOf}`,
+        note: NOTE,
+      });
+    } catch (error) {
+      console.error(`mcp replay for ${coin} failed`, error);
+      return toolError("The database did not answer. Try again later.");
+    }
+  },
+};
+
 const search: Tool = {
   name: "search_coins",
   description:
@@ -212,4 +296,4 @@ const calibration: Tool = {
   },
 };
 
-export const TOOLS: readonly Tool[] = [baseRate, search, calibration];
+export const TOOLS: readonly Tool[] = [baseRate, replay, search, calibration];

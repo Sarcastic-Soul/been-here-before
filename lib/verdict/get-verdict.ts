@@ -12,6 +12,7 @@ import {
   isNotNull,
   isNull,
   lt,
+  lte,
   ne,
   or,
   sql,
@@ -58,7 +59,7 @@ const coinColumns = {
 };
 
 /** BTC price per snapshot week. */
-async function btcPrices(): Promise<Map<string, number>> {
+export async function btcPrices(): Promise<Map<string, number>> {
   "use cache: remote";
   cacheLife("days");
   cacheTag("history");
@@ -68,8 +69,9 @@ async function btcPrices(): Promise<Map<string, number>> {
   return new Map(rows.map((row) => [row.week, row.btc]));
 }
 
-/** Market phase per snapshot week, and the latest week's whole market. */
-async function marketInfo(): Promise<{
+/** The whole market per snapshot week, its phase alone, and the latest week. */
+export async function marketInfo(): Promise<{
+  byWeek: Map<string, MarketToday>;
   phases: Map<string, Phase>;
   latest: MarketToday | null;
 }> {
@@ -85,18 +87,16 @@ async function marketInfo(): Promise<{
     })
     .from(marketWeeks)
     .orderBy(asc(marketWeeks.week));
-  const last = rows.at(-1);
+  // market_weeks stores dominance in percent; the API uses 0 to 1.
+  const markets: MarketToday[] = rows.map((row) => ({
+    ...row,
+    phase: row.phase as Phase,
+    btcDominance: row.btcDominance === null ? null : row.btcDominance / 100,
+  }));
   return {
-    phases: new Map(rows.map((row) => [row.week, row.phase as Phase])),
-    // market_weeks stores dominance in percent; the API uses 0 to 1.
-    latest: last
-      ? {
-          ...last,
-          phase: last.phase as Phase,
-          btcDominance:
-            last.btcDominance === null ? null : last.btcDominance / 100,
-        }
-      : null,
+    byWeek: new Map(markets.map((m) => [m.week, m])),
+    phases: new Map(markets.map((m) => [m.week, m.phase])),
+    latest: markets.at(-1) ?? null,
   };
 }
 
@@ -105,6 +105,7 @@ async function candidateRows(
   target: MatchState,
   lineageId: number,
   step: BandStep,
+  maxWeek: string | null,
 ): Promise<OutcomeRow[]> {
   const q = queryBands(target, step);
   const candidates = await db()
@@ -130,6 +131,7 @@ async function candidateRows(
         gte(coinWeeks.ageWeeks, q.ageMin),
         q.ageMax === null ? undefined : lt(coinWeeks.ageWeeks, q.ageMax),
         ne(coinWeeks.lineageId, lineageId),
+        maxWeek === null ? undefined : lte(coinWeeks.week, maxWeek),
       ),
     );
   return candidates.map((row) => ({
@@ -144,7 +146,7 @@ async function candidateRows(
 }
 
 /** Resolve a slug to one coin: live coins first, then the most recently seen. */
-async function findCoin(slug: string) {
+export async function findCoin(slug: string) {
   const [row] = await db()
     .select({
       ...coinColumns,
@@ -159,6 +161,106 @@ async function findCoin(slug: string) {
     )
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * Match one coin's state against past episodes, widening in fixed steps while
+ * n is under the minimum, and build the analysis and twin paths.
+ * maxWeek limits episodes to those that started on or before it (the time
+ * machine passes T minus 106 weeks so every outcome was known at T).
+ * survivors: also count which lineages are alive today (only for today's verdict).
+ */
+export async function matchCoin(
+  lineageId: number,
+  target: MatchState,
+  options: { maxWeek: string | null; survivors: boolean },
+) {
+  // Standard bands first; widen in fixed steps only while n is under the
+  // minimum. If even the widest step is short, it is still used so the page
+  // can show the closest twins next to the refusal.
+  let rows: OutcomeRow[] = [];
+  let stepIndex = 0;
+  const tried: number[] = [];
+  for (; stepIndex < BAND_STEPS.length; stepIndex++) {
+    rows = await candidateRows(
+      target,
+      lineageId,
+      BAND_STEPS[stepIndex],
+      options.maxWeek,
+    );
+    const n = episodeCount(rows, target, lineageId, stepIndex);
+    tried.push(n);
+    if (n >= MIN_EPISODES) break;
+  }
+  stepIndex = Math.min(stepIndex, BAND_STEPS.length - 1);
+
+  const ids = [...new Set(rows.map((row) => row.coinId))];
+  const lineages = [...new Set(rows.map((row) => row.lineageId))];
+  const [btc, market, labels, survivors] = await Promise.all([
+    btcPrices(),
+    marketInfo(),
+    ids.length
+      ? db()
+          .select({ id: coins.id, name: coins.name, symbol: coins.symbol })
+          .from(coins)
+          .where(inArray(coins.id, ids))
+      : Promise.resolve([]),
+    // A lineage is alive if any of its coins is in the latest weekly snapshot.
+    options.survivors && lineages.length
+      ? db()
+          .selectDistinct({ lineageId: coins.lineageId })
+          .from(coins)
+          .where(
+            and(
+              inArray(coins.lineageId, lineages),
+              eq(
+                coins.lastWeek,
+                sql<string>`(select max(${marketWeeks.week}) from ${marketWeeks})`,
+              ),
+            ),
+          )
+      : Promise.resolve([]),
+  ]);
+  const names = new Map(
+    labels.map((row) => [row.id, { name: row.name, symbol: row.symbol }]),
+  );
+  const { twinEpisodes, ...analysis } = analyze(
+    target,
+    lineageId,
+    rows,
+    btc,
+    names,
+    {
+      stepIndex,
+      tried,
+      alive: options.survivors
+        ? new Set(survivors.map((row) => row.lineageId))
+        : undefined,
+      phases: market.phases,
+    },
+  );
+
+  const twins = await Promise.all(
+    twinEpisodes.map(async (episode) => {
+      const path = await db()
+        .select({ week: coinWeeks.week, priceUsd: coinWeeks.priceUsd })
+        .from(coinWeeks)
+        .where(
+          and(
+            eq(coinWeeks.lineageId, episode.lineageId),
+            between(
+              coinWeeks.week,
+              episode.week,
+              addWeeks(episode.week, HORIZON_WEEKS),
+            ),
+          ),
+        )
+        .orderBy(asc(coinWeeks.week));
+      return { episode, path: twinPath(episode.week, path, btc) };
+    }),
+  );
+
+  return { analysis, twins, btc, market };
 }
 
 /**
@@ -245,82 +347,10 @@ export async function getVerdict(slug: string): Promise<VerdictResponse> {
     drawdown: state.drawdown,
     ageWeeks: state.ageWeeks,
   };
-  // Standard bands first; widen in fixed steps only while n is under the
-  // minimum. If even the widest step is short, it is still used so the page
-  // can show the closest twins next to the refusal.
-  let rows: OutcomeRow[] = [];
-  let stepIndex = 0;
-  const tried: number[] = [];
-  for (; stepIndex < BAND_STEPS.length; stepIndex++) {
-    rows = await candidateRows(target, coin.lineageId, BAND_STEPS[stepIndex]);
-    const n = episodeCount(rows, target, coin.lineageId, stepIndex);
-    tried.push(n);
-    if (n >= MIN_EPISODES) break;
-  }
-  stepIndex = Math.min(stepIndex, BAND_STEPS.length - 1);
-
-  const ids = [...new Set(rows.map((row) => row.coinId))];
-  const lineages = [...new Set(rows.map((row) => row.lineageId))];
-  const [btc, market, labels, survivors] = await Promise.all([
-    btcPrices(),
-    marketInfo(),
-    ids.length
-      ? db()
-          .select({ id: coins.id, name: coins.name, symbol: coins.symbol })
-          .from(coins)
-          .where(inArray(coins.id, ids))
-      : Promise.resolve([]),
-    // A lineage is alive if any of its coins is in the latest weekly snapshot.
-    lineages.length
-      ? db()
-          .selectDistinct({ lineageId: coins.lineageId })
-          .from(coins)
-          .where(
-            and(
-              inArray(coins.lineageId, lineages),
-              eq(
-                coins.lastWeek,
-                sql<string>`(select max(${marketWeeks.week}) from ${marketWeeks})`,
-              ),
-            ),
-          )
-      : Promise.resolve([]),
-  ]);
-  const names = new Map(
-    labels.map((row) => [row.id, { name: row.name, symbol: row.symbol }]),
-  );
-  const { twinEpisodes, ...analysis } = analyze(
-    target,
+  const { analysis, twins, btc, market } = await matchCoin(
     coin.lineageId,
-    rows,
-    btc,
-    names,
-    {
-      stepIndex,
-      tried,
-      alive: new Set(survivors.map((row) => row.lineageId)),
-      phases: market.phases,
-    },
-  );
-
-  const twins = await Promise.all(
-    twinEpisodes.map(async (episode) => {
-      const path = await db()
-        .select({ week: coinWeeks.week, priceUsd: coinWeeks.priceUsd })
-        .from(coinWeeks)
-        .where(
-          and(
-            eq(coinWeeks.lineageId, episode.lineageId),
-            between(
-              coinWeeks.week,
-              episode.week,
-              addWeeks(episode.week, HORIZON_WEEKS),
-            ),
-          ),
-        )
-        .orderBy(asc(coinWeeks.week));
-      return { episode, path: twinPath(episode.week, path, btc) };
-    }),
+    target,
+    { maxWeek: null, survivors: true },
   );
 
   const weeks = [...btc.keys()].sort();

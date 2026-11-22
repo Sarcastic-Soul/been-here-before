@@ -79,6 +79,84 @@
         }
       }
     },
+    "/api/then": {
+      "get": {
+        "operationId": "getPastVerdict",
+        "summary": "Time machine: the verdict for a coin in a past week",
+        "description": "Replays the verdict as it would have been given in that week. Only episodes that started at least 106 weeks before the week count, so every outcome used was already known then. Survivor flags are left out because they are hindsight. Also returns what really happened over the next 2 years. Dates snap to the Sunday snapshot on or before them. A refused request returns status excluded, benchmark, not_listed, not_covered or out_of_range. Status is 404 only for not_found.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]{1,100}$"
+            },
+            "example": "terra-luna"
+          },
+          {
+            "name": "week",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2022-04-03"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A past verdict with the actual outcome, or a refusal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/PastOk"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PastRefused"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or bad slug or week.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No coin with that slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PastRefused"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The database did not answer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/coins/search": {
       "get": {
         "operationId": "searchCoins",
@@ -112,9 +190,7 @@
                       }
                     }
                   },
-                  "required": [
-                    "results"
-                  ],
+                  "required": ["results"],
                   "additionalProperties": false
                 }
               }
@@ -191,10 +267,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "ok",
-                    "error"
-                  ],
+                  "required": ["ok", "error"],
                   "additionalProperties": false
                 }
               }
@@ -265,9 +338,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "error"
-        ],
+        "required": ["error"],
         "additionalProperties": false
       },
       "Rate": {
@@ -298,13 +369,7 @@
             "description": "Effective number of independent episodes behind lo and hi, after allowing for episodes that bunch in time. Missing for plain Wilson rates and in old saved copies."
           }
         },
-        "required": [
-          "k",
-          "n",
-          "p",
-          "lo",
-          "hi"
-        ],
+        "required": ["k", "n", "p", "lo", "hi"],
         "additionalProperties": false
       },
       "CoinInfo": {
@@ -330,10 +395,7 @@
             "type": "string"
           },
           "dateAdded": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           }
         },
         "required": [
@@ -355,10 +417,7 @@
           },
           "source": {
             "type": "string",
-            "enum": [
-              "weekly",
-              "daily"
-            ]
+            "enum": ["weekly", "daily"]
           },
           "rankAdj": {
             "type": "integer",
@@ -368,17 +427,11 @@
             "type": "integer"
           },
           "priceUsd": {
-            "type": [
-              "number",
-              "null"
-            ],
+            "type": ["number", "null"],
             "description": "Null in saved copies, which keep derived statistics only."
           },
           "marketCapUsd": {
-            "type": [
-              "number",
-              "null"
-            ],
+            "type": ["number", "null"],
             "description": "Null in saved copies."
           },
           "drawdown": {
@@ -474,16 +527,10 @@
             "$ref": "#/components/schemas/Rate"
           },
           "medianCoinReturn": {
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "medianExcessReturn": {
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           }
         },
         "required": [
@@ -518,12 +565,7 @@
           },
           "cycle": {
             "type": "string",
-            "enum": [
-              "2012-16",
-              "2016-20",
-              "2020-24",
-              "2024-28"
-            ]
+            "enum": ["2012-16", "2016-20", "2020-24", "2024-28"]
           },
           "rankAdj": {
             "type": "integer"
@@ -539,19 +581,13 @@
             "description": "The coin's return over the next 104 weeks."
           },
           "btcRet104w": {
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "beatBtc104w": {
             "type": "boolean"
           },
           "beatBtc52w": {
-            "type": [
-              "boolean",
-              "null"
-            ]
+            "type": ["boolean", "null"]
           },
           "fellOut104w": {
             "type": "boolean",
@@ -566,12 +602,7 @@
           },
           "phase": {
             "type": "string",
-            "enum": [
-              "near_peak",
-              "correction",
-              "bear",
-              "recovery"
-            ],
+            "enum": ["near_peak", "correction", "bear", "recovery"],
             "description": "Market phase in the start week. Missing in old saved copies."
           }
         },
@@ -606,10 +637,7 @@
             "description": "Coin price relative to BTC, 100 at the start."
           }
         },
-        "required": [
-          "t",
-          "vsBtc"
-        ],
+        "required": ["t", "vsBtc"],
         "additionalProperties": false
       },
       "Twin": {
@@ -625,10 +653,7 @@
             }
           }
         },
-        "required": [
-          "episode",
-          "path"
-        ],
+        "required": ["episode", "path"],
         "additionalProperties": false
       },
       "CycleRow": {
@@ -636,12 +661,7 @@
         "properties": {
           "cycle": {
             "type": "string",
-            "enum": [
-              "2012-16",
-              "2016-20",
-              "2020-24",
-              "2024-28"
-            ]
+            "enum": ["2012-16", "2016-20", "2020-24", "2024-28"]
           },
           "label": {
             "type": "string"
@@ -650,11 +670,7 @@
             "$ref": "#/components/schemas/Summary"
           }
         },
-        "required": [
-          "cycle",
-          "label",
-          "summary"
-        ],
+        "required": ["cycle", "label", "summary"],
         "additionalProperties": false
       },
       "PhaseRow": {
@@ -662,12 +678,7 @@
         "properties": {
           "phase": {
             "type": "string",
-            "enum": [
-              "near_peak",
-              "correction",
-              "bear",
-              "recovery"
-            ]
+            "enum": ["near_peak", "correction", "bear", "recovery"]
           },
           "label": {
             "type": "string"
@@ -676,11 +687,7 @@
             "$ref": "#/components/schemas/Summary"
           }
         },
-        "required": [
-          "phase",
-          "label",
-          "summary"
-        ],
+        "required": ["phase", "label", "summary"],
         "additionalProperties": false
       },
       "MarketToday": {
@@ -693,34 +700,18 @@
           },
           "phase": {
             "type": "string",
-            "enum": [
-              "near_peak",
-              "correction",
-              "bear",
-              "recovery"
-            ]
+            "enum": ["near_peak", "correction", "bear", "recovery"]
           },
           "btcDominance": {
-            "type": [
-              "number",
-              "null"
-            ],
+            "type": ["number", "null"],
             "description": "BTC share of total market cap, 0 to 1."
           },
           "marketDrawdown": {
-            "type": [
-              "number",
-              "null"
-            ],
+            "type": ["number", "null"],
             "description": "Total market cap below its peak so far, 0 to 1."
           }
         },
-        "required": [
-          "week",
-          "phase",
-          "btcDominance",
-          "marketDrawdown"
-        ],
+        "required": ["week", "phase", "btcDominance", "marketDrawdown"],
         "additionalProperties": false
       },
       "Evidence": {
@@ -772,12 +763,7 @@
           },
           "verdict": {
             "type": "string",
-            "enum": [
-              "not_enough_history",
-              "rotate",
-              "hold",
-              "no_clear_edge"
-            ]
+            "enum": ["not_enough_history", "rotate", "hold", "no_clear_edge"]
           },
           "verdictText": {
             "type": "string",
@@ -881,10 +867,7 @@
                 "type": "string"
               }
             },
-            "required": [
-              "slug",
-              "name"
-            ],
+            "required": ["slug", "name"],
             "additionalProperties": false
           },
           "lastSeen": {
@@ -892,11 +875,7 @@
             "description": "For a coin no longer in the snapshots: the last week it was seen."
           }
         },
-        "required": [
-          "status",
-          "coin",
-          "message"
-        ],
+        "required": ["status", "coin", "message"],
         "additionalProperties": false
       },
       "SearchHit": {
@@ -915,10 +894,7 @@
             "type": "string"
           },
           "rankAdj": {
-            "type": [
-              "integer",
-              "null"
-            ]
+            "type": ["integer", "null"]
           },
           "live": {
             "type": "boolean",
@@ -960,13 +936,7 @@
             "description": "1 - brier / brierBaseline."
           }
         },
-        "required": [
-          "year",
-          "n",
-          "brier",
-          "brierBaseline",
-          "gain"
-        ],
+        "required": ["year", "n", "brier", "brierBaseline", "gain"],
         "additionalProperties": false
       },
       "Calibration": {
@@ -1003,18 +973,12 @@
                   "type": "integer"
                 }
               },
-              "required": [
-                "n",
-                "beat"
-              ],
+              "required": ["n", "beat"],
               "additionalProperties": false
             }
           },
           "example": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "additionalProperties": true
           },
           "reliability": {
@@ -1035,12 +999,7 @@
                   "type": "integer"
                 }
               },
-              "required": [
-                "bucket",
-                "predicted",
-                "realized",
-                "n"
-              ],
+              "required": ["bucket", "predicted", "realized", "n"],
               "additionalProperties": false
             }
           },
@@ -1062,10 +1021,7 @@
                         "type": "number"
                       }
                     },
-                    "required": [
-                      "lo",
-                      "hi"
-                    ],
+                    "required": ["lo", "hi"],
                     "additionalProperties": false
                   },
                   "byYear": {
@@ -1082,12 +1038,7 @@
                     "description": "Predictions per widening step; index 0 is the standard match."
                   }
                 },
-                "required": [
-                  "gain",
-                  "gainInterval",
-                  "byYear",
-                  "steps"
-                ],
+                "required": ["gain", "gainInterval", "byYear", "steps"],
                 "additionalProperties": false
               },
               {
@@ -1120,27 +1071,18 @@
             "const": true
           },
           "lastWeek": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "description": "Latest weekly snapshot."
           },
           "stateAsOf": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "description": "When today's state was last refreshed."
           },
           "liveCoins": {
             "type": "integer"
           },
           "stateAgeHours": {
-            "type": [
-              "integer",
-              "null"
-            ]
+            "type": ["integer", "null"]
           }
         },
         "required": [
@@ -1160,10 +1102,7 @@
             "const": "2.0"
           },
           "id": {
-            "type": [
-              "string",
-              "integer"
-            ],
+            "type": ["string", "integer"],
             "description": "Leave out for a notification."
           },
           "method": {
@@ -1181,10 +1120,7 @@
             "additionalProperties": true
           }
         },
-        "required": [
-          "jsonrpc",
-          "method"
-        ]
+        "required": ["jsonrpc", "method"]
       },
       "McpResponse": {
         "type": "object",
@@ -1194,11 +1130,7 @@
             "const": "2.0"
           },
           "id": {
-            "type": [
-              "string",
-              "integer",
-              "null"
-            ]
+            "type": ["string", "integer", "null"]
           },
           "result": {
             "type": "object",
@@ -1214,17 +1146,117 @@
                 "type": "string"
               }
             },
-            "required": [
-              "code",
-              "message"
-            ],
+            "required": ["code", "message"],
             "additionalProperties": false
           }
         },
+        "required": ["jsonrpc", "id"]
+      },
+      "ActualOutcome": {
+        "type": "object",
         "required": [
-          "jsonrpc",
-          "id"
-        ]
+          "complete",
+          "ret104w",
+          "btcRet104w",
+          "beatBtc104w",
+          "fellOut104w",
+          "reachedTop20",
+          "path"
+        ],
+        "properties": {
+          "complete": {
+            "type": "boolean",
+            "description": "False when the week is less than 2 years ago; the path then stops at the latest week."
+          },
+          "ret104w": {
+            "type": ["number", "null"],
+            "description": "Price change over the next 104 weeks, as a fraction."
+          },
+          "btcRet104w": {
+            "type": ["number", "null"]
+          },
+          "beatBtc104w": {
+            "type": ["boolean", "null"]
+          },
+          "fellOut104w": {
+            "type": ["boolean", "null"],
+            "description": "Dropped out of the top 5,000 or stopped being listed."
+          },
+          "reachedTop20": {
+            "type": ["boolean", "null"]
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TwinPoint"
+            },
+            "description": "The coin's own price divided by BTC, 100 at the start."
+          }
+        }
+      },
+      "PastOk": {
+        "type": "object",
+        "required": ["status", "asOf", "cutoff", "verdict", "actual", "market"],
+        "properties": {
+          "status": {
+            "const": "ok"
+          },
+          "asOf": {
+            "type": "string",
+            "format": "date",
+            "description": "The Sunday snapshot used."
+          },
+          "cutoff": {
+            "type": "string",
+            "format": "date",
+            "description": "Only episodes that started on or before this week count."
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/VerdictOk"
+          },
+          "actual": {
+            "$ref": "#/components/schemas/ActualOutcome"
+          },
+          "market": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MarketToday"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "PastRefused": {
+        "type": "object",
+        "required": ["status", "message"],
+        "properties": {
+          "status": {
+            "enum": [
+              "not_found",
+              "excluded",
+              "benchmark",
+              "not_listed",
+              "not_covered",
+              "out_of_range"
+            ]
+          },
+          "coin": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CoinInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        }
       }
     }
   }

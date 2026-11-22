@@ -7,6 +7,7 @@ import { CoinSearch } from "@/components/coin-search";
 import { CycleTable, PhaseTable } from "@/components/cycle-table";
 import { EpisodeTable } from "@/components/episode-table";
 import { RateBar } from "@/components/rate-bar";
+import { Section } from "@/components/section";
 import { ReceiptDrawer } from "@/components/receipt-drawer";
 import { TwinChart } from "@/components/twin-chart";
 import { VerdictSummary } from "@/components/verdict-summary";
@@ -24,6 +25,8 @@ import {
   signedPct,
   usd,
 } from "@/lib/format";
+import { addWeeks } from "@/lib/verdict/analyze";
+import { FIRST_REPLAY_WEEK, thenHref } from "@/lib/verdict/cases";
 import { getReceipt } from "@/lib/verdict/get-receipt";
 import { getVerdictOrSaved } from "@/lib/verdict/saved";
 import { toTwinSeries } from "@/lib/verdict/twin-series";
@@ -86,33 +89,6 @@ function SavedBanner({ savedAt }: { savedAt: string }) {
       The live database did not answer in time, so this is a saved copy from{" "}
       {longDate(savedAt)}. The numbers are the same kind, just not today&apos;s.
     </p>
-  );
-}
-
-function Section({
-  id,
-  title,
-  note,
-  children,
-}: {
-  id: string;
-  title: string;
-  note?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section aria-labelledby={id} className="border-ink border-t py-10">
-      <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-        <h2
-          id={id}
-          className="font-serif text-[26px] leading-tight tracking-[-0.01em]"
-        >
-          {title}
-        </h2>
-        {note && <p className="text-muted text-[13px]">{note}</p>}
-      </div>
-      {children}
-    </section>
   );
 }
 
@@ -309,7 +285,9 @@ function Verdict({
             {PHASES.map((p, i) => (
               <span key={p.phase}>
                 {i > 0 && "; "}
-                <span className="text-ink-body">{p.label.toLowerCase()}</span>{" "}
+                <span className="text-ink-body">
+                  {p.label.toLowerCase()}
+                </span>{" "}
                 means {p.rule}
               </span>
             ))}
@@ -346,6 +324,17 @@ function Verdict({
         <Link href="/method" className="link text-ink">
           Method and limits
         </Link>
+        {state.ageWeeks >= 110 && (
+          <>
+            {" · "}
+            <Link
+              href={thenHref(coin.slug, addWeeks(data.evidence.lastWeek, -104))}
+              className="link text-ink"
+            >
+              What would it have said 2 years ago?
+            </Link>
+          </>
+        )}
       </p>
     </article>
   );
@@ -417,9 +406,26 @@ function Refused({ data }: { data: VerdictRefused }) {
       <p className="text-ink-body mb-10 max-w-[38em] text-[17px]">
         {data.message}
       </p>
+      {data.coin && data.lastSeen && (
+        <ReplayLink slug={data.coin.slug} lastSeen={data.lastSeen} />
+      )}
       <h2 className="label mb-3">Try another coin</h2>
       <CoinSearch size="md" />
     </article>
+  );
+}
+
+/** For a coin that is gone: replay the verdict half a year before it vanished. */
+function ReplayLink({ slug, lastSeen }: { slug: string; lastSeen: string }) {
+  const week = addWeeks(lastSeen, -26);
+  if (week < FIRST_REPLAY_WEEK) return null;
+  return (
+    <p className="text-ink-body -mt-6 mb-10 max-w-[38em] text-[17px]">
+      <Link href={thenHref(slug, week)} className="link text-ink">
+        What would this site have said in {monthYear(week)}, half a year before
+        it vanished?
+      </Link>
+    </p>
   );
 }
 

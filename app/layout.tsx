@@ -50,7 +50,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             >
               Been Here Before
             </Link>
-            <nav aria-label="Main" className="flex gap-5 text-sm">
+            <nav aria-label="Main" className="flex gap-4 text-sm sm:gap-5">
+              <Link
+                href="/then"
+                className="link inline-flex min-h-11 items-center"
+              >
+                Time machine
+              </Link>
               <Link
                 href="/method"
                 className="link inline-flex min-h-11 items-center"
@@ -59,7 +65,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               </Link>
               <Link
                 href="/method#calibration"
-                className="link inline-flex min-h-11 items-center"
+                className="link hidden min-h-11 items-center sm:inline-flex"
               >
                 Calibration
               </Link>

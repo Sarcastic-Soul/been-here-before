@@ -13,6 +13,13 @@ export interface TwinSeries {
   start: string;
   beat: boolean;
   path: { t: number; vsBtc: number }[];
+  /** The coin being looked at (time machine): drawn in ink, on top. */
+  own?: boolean;
+}
+
+function strokeOf(s: { beat: boolean; own?: boolean }) {
+  if (s.own) return "var(--ink)";
+  return s.beat ? "var(--accent)" : "var(--mark-muted)";
 }
 
 const HORIZON = 104;
@@ -52,10 +59,14 @@ export function TwinChart({
     return M.top + plotH * (1 - (Math.log10(clamped) - lo) / (hi - lo));
   };
 
-  const series = twins.map((twin) => {
-    const points = twin.path.filter((p) => p.vsBtc > 0);
-    return { ...twin, points, last: points[points.length - 1] };
-  });
+  const series = twins
+    .map((twin) => {
+      const points = twin.path.filter((p) => p.vsBtc > 0);
+      return { ...twin, points, last: points[points.length - 1] };
+    })
+    // The coin itself last, so it draws on top of its twins.
+    .sort((a, b) => Number(a.own ?? false) - Number(b.own ?? false));
+  const own = series.find((s) => s.own);
 
   // End labels: sort by end height and push apart so they never overlap.
   const labels = series
@@ -135,6 +146,21 @@ export function TwinChart({
           </svg>
           100 = level with BTC
         </span>
+        {own && (
+          <span className="text-ink inline-flex items-center gap-1.5 font-medium">
+            <svg width="16" height="8" aria-hidden>
+              <line
+                x1="0"
+                x2="16"
+                y1="4"
+                y2="4"
+                stroke="var(--ink)"
+                strokeWidth="3"
+              />
+            </svg>
+            what {own.symbol} really did
+          </span>
+        )}
       </div>
       <div ref={ref} className="relative [contain:inline-size]">
         <svg
@@ -200,8 +226,8 @@ export function TwinChart({
                   .map((p) => `${x(p.t).toFixed(1)},${y(p.vsBtc).toFixed(1)}`)
                   .join(" ")}
                 fill="none"
-                stroke={s.beat ? "var(--accent)" : "var(--mark-muted)"}
-                strokeWidth={focusKey === s.key ? 2.75 : 2}
+                stroke={strokeOf(s)}
+                strokeWidth={s.own ? 3 : focusKey === s.key ? 2.75 : 2}
                 strokeLinejoin="round"
                 strokeLinecap="round"
                 opacity={dim ? 0.25 : 1}
@@ -245,7 +271,7 @@ export function TwinChart({
                   cx={x(p.t)}
                   cy={y(p.vsBtc)}
                   r={4}
-                  fill={s.beat ? "var(--accent)" : "var(--mark-muted)"}
+                  fill={strokeOf(s)}
                   stroke="var(--paper)"
                   strokeWidth={2}
                 />
@@ -307,12 +333,7 @@ export function TwinChart({
               >
                 <span className="inline-flex items-center gap-1.5">
                   <svg width="8" height="8" aria-hidden>
-                    <circle
-                      cx="4"
-                      cy="4"
-                      r="4"
-                      fill={s.beat ? "var(--accent)" : "var(--mark-muted)"}
-                    />
+                    <circle cx="4" cy="4" r="4" fill={strokeOf(s)} />
                   </svg>
                   {s.symbol}
                 </span>

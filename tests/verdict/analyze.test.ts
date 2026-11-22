@@ -5,6 +5,7 @@ import {
   analyze,
   episodeCount,
   queryBands,
+  snapToSunday,
   twinPath,
   type OutcomeRow,
 } from "@/lib/verdict/analyze";
@@ -189,5 +190,14 @@ describe("twinPath", () => {
     const b1 = btc.get(addWeeks(start, 1))!;
     expect(path[1].vsBtc).toBeCloseTo((2 / (b1 / b0)) * 100, 2);
     expect(path).toHaveLength(2);
+  });
+});
+
+describe("snapToSunday", () => {
+  it("moves any day back to the Sunday snapshot on or before it", () => {
+    expect(snapToSunday("2022-04-03")).toBe("2022-04-03");
+    expect(snapToSunday("2022-04-05")).toBe("2022-04-03");
+    expect(snapToSunday("2022-04-09")).toBe("2022-04-03");
+    expect(snapToSunday("2022-01-01")).toBe("2021-12-26");
   });
 });

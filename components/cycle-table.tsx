@@ -122,9 +122,11 @@ export function CycleTable({ rows }: { rows: CycleRow[] }) {
 export function PhaseTable({
   rows,
   current,
+  currentNote = "now",
 }: {
   rows: PhaseRow[];
   current?: string;
+  currentNote?: string;
 }) {
   return (
     <SplitTable
@@ -132,7 +134,7 @@ export function PhaseTable({
       heading="Market when it started"
       caption="Share of episodes that beat BTC over 2 years, by market phase in the start week"
       current={current}
-      currentNote="now"
+      currentNote={currentNote}
     />
   );
 }

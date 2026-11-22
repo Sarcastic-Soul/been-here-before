@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const getVerdictOrSaved = vi.fn();
 const searchCoins = vi.fn();
 const getCalibration = vi.fn();
+const getPastVerdict = vi.fn();
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/verdict/saved", () => ({
@@ -10,6 +11,9 @@ vi.mock("@/lib/verdict/saved", () => ({
 }));
 vi.mock("@/lib/verdict/get-verdict", () => ({
   searchCoins: (query: string) => searchCoins(query),
+}));
+vi.mock("@/lib/verdict/get-past-verdict", () => ({
+  getPastVerdict: (slug: string, week: string) => getPastVerdict(slug, week),
 }));
 vi.mock("@/lib/calibration/get-calibration", () => ({
   getCalibration: () => getCalibration(),
@@ -85,6 +89,7 @@ describe("POST /api/mcp", () => {
     getVerdictOrSaved.mockReset();
     searchCoins.mockReset();
     getCalibration.mockReset();
+    getPastVerdict.mockReset();
   });
 
   it("answers initialize", async () => {
@@ -106,7 +111,7 @@ describe("POST /api/mcp", () => {
     expect(body.result).toEqual({});
   });
 
-  it("lists the three tools with schemas", async () => {
+  it("lists the four tools with schemas", async () => {
     const body = await (await rpc("tools/list")).json();
     const tools = body.result.tools as {
       name: string;
@@ -115,6 +120,7 @@ describe("POST /api/mcp", () => {
     }[];
     expect(tools.map((t) => t.name)).toEqual([
       "base_rate",
+      "replay",
       "search_coins",
       "calibration",
     ]);
@@ -213,6 +219,66 @@ describe("POST /api/mcp", () => {
     expect(body.error).toBeUndefined();
     expect(body.result.isError).toBe(true);
     expect(JSON.stringify(body)).not.toContain("hunter2");
+  });
+
+  it("replay snaps to Sunday and scores the call", async () => {
+    getPastVerdict.mockResolvedValue({
+      status: "ok",
+      asOf: "2020-01-05",
+      cutoff: "2017-12-24",
+      verdict: {
+        ...ok,
+        state: { ...ok.state, asOf: "2020-01-05T00:00:00.000Z" },
+      },
+      actual: {
+        complete: true,
+        ret104w: -0.8,
+        btcRet104w: 3,
+        beatBtc104w: false,
+        fellOut104w: false,
+        reachedTop20: false,
+        path: [{ t: 0, vsBtc: 100 }],
+      },
+      market: {
+        week: "2020-01-05",
+        phase: "bear",
+        btcDominance: 0.68,
+        marketDrawdown: 0.7,
+      },
+    });
+    const body = await (
+      await call("replay", { coin: "TestCoin", week: "2020-01-08" })
+    ).json();
+    expect(getPastVerdict).toHaveBeenCalledWith("testcoin", "2020-01-05");
+    const out = JSON.parse(body.result.content[0].text);
+    expect(out.verdict).toBe("rotate");
+    expect(out.callHeldUp).toBe(true);
+    expect(out.then.marketPhase).toBe("bear");
+    expect(out.actual.return2y).toBe(-0.8);
+    expect(out.url).toBe(
+      "https://been-here-before.vercel.app/then/testcoin/2020-01-05",
+    );
+    expect(out.episodes).toBeUndefined();
+  });
+
+  it("replay passes refusals through and rejects bad dates", async () => {
+    getPastVerdict.mockResolvedValue({
+      status: "out_of_range",
+      coin,
+      message: "Too early.",
+    });
+    const refused = await (
+      await call("replay", { coin: "testcoin", week: "2014-01-01" })
+    ).json();
+    expect(JSON.parse(refused.result.content[0].text).status).toBe(
+      "out_of_range",
+    );
+    for (const week of ["2020-13-40", "yesterday", ""]) {
+      const bad = await (
+        await call("replay", { coin: "testcoin", week })
+      ).json();
+      expect(bad.error.code).toBe(-32602);
+    }
   });
 
   it("search_coins returns at most 8 hits", async () => {

@@ -46,6 +46,13 @@ export function addWeeks(day: string, weeks: number): string {
     .slice(0, 10);
 }
 
+/** The Sunday on or before a YYYY-MM-DD date (weekly snapshots are Sundays). */
+export function snapToSunday(day: string): string {
+  const date = new Date(`${day}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - date.getUTCDay());
+  return date.toISOString().slice(0, 10);
+}
+
 /** The SQL prefilter. Slightly wider than the bands; selectEpisodes applies the exact test. */
 export function queryBands(target: MatchState, step: BandStep = STANDARD) {
   const rank = rankBand(target.rankAdj, step);

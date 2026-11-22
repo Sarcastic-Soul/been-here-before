@@ -8,6 +8,7 @@ Base URL: https://been-here-before.vercel.app
 
 - [Home](https://been-here-before.vercel.app/): search for a coin.
 - [Filecoin example](https://been-here-before.vercel.app/coin/filecoin): one coin page. Replace `filecoin` with any CoinMarketCap slug.
+- [Time machine](https://been-here-before.vercel.app/then): replay the verdict for any coin on a past week, using only history known then, next to what really happened. Example: [LUNA, week of 3 Apr 2022](https://been-here-before.vercel.app/then/terra-luna/2022-04-03).
 - [Method](https://been-here-before.vercel.app/method): the matching rules, the verdict thresholds and the walk-forward test of how well the verdicts held up.
 
 ## JSON API
@@ -15,6 +16,7 @@ Base URL: https://been-here-before.vercel.app
 All routes are GET, need no key, and read only from our own database. They never call CoinMarketCap.
 
 - [/api/verdict?slug=filecoin](https://been-here-before.vercel.app/api/verdict?slug=filecoin): full result for one coin: today's state, bands used, verdict, summary, split by halving cycle, twins and every episode. Returns `status` "ok" or a refusal (`not_found`, `excluded`, `not_covered`, `benchmark`, `moved`).
+- [/api/then?slug=terra-luna&week=2022-04-03](https://been-here-before.vercel.app/api/then?slug=terra-luna&week=2022-04-03): the time machine. The verdict as of that week (only episodes that started at least 106 weeks earlier count) and the actual 2-year outcome.
 - [/api/coins/search?q=fil](https://been-here-before.vercel.app/api/coins/search?q=fil): find a coin by symbol, name or slug. Returns up to 10 hits.
 - [/api/calibration](https://been-here-before.vercel.app/api/calibration): the walk-forward test of the method since 2018.
 - [/api/health](https://been-here-before.vercel.app/api/health): database status and how fresh the data is.
@@ -26,6 +28,7 @@ A remote MCP server (Streamable HTTP, JSON replies, no sessions, no key) at http
 Tools:
 
 - `base_rate`: input `{ "coin": "filecoin" }` (a slug or a symbol such as "FIL"). Returns the compact base rate for that coin.
+- `replay`: input `{ "coin": "terra-luna", "week": "2022-04-03" }`. The verdict as it would have been given that week, what really happened, and whether the call held up.
 - `search_coins`: input `{ "query": "fil" }`. Returns up to 8 matching coins.
 - `calibration`: no input. Returns the summary of the walk-forward test.
 
