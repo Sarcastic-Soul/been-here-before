@@ -1,0 +1,3 @@
+# Been Here Before: prediction ledger roots, one line per day.
+# Written by .github/workflows/ledger-anchor.yml on main. Lines are only ever added.
+# day count root
