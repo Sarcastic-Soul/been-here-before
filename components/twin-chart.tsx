@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
 
-import { signedPct } from "@/lib/format";
+import { monthYear, signedPct } from "@/lib/format";
+import { TWIN_FOCUS_EVENT, twinLineStyle } from "@/lib/twin-style";
 
+import { LineSwatch } from "./line-swatch";
 import { useWidth } from "./use-width";
 
 export interface TwinSeries {
@@ -17,11 +19,6 @@ export interface TwinSeries {
   own?: boolean;
 }
 
-function strokeOf(s: { beat: boolean; own?: boolean }) {
-  if (s.own) return "var(--ink)";
-  return s.beat ? "var(--accent)" : "var(--mark-muted)";
-}
-
 const HORIZON = 104;
 const M = { top: 12, right: 58, bottom: 26, left: 40 };
 
@@ -31,7 +28,9 @@ function vsBtcText(index: number) {
 
 /**
  * Price of each twin divided by BTC, 100 at the episode start, log scale.
- * Above 100 the coin was ahead of simply holding BTC. Accent = ended ahead.
+ * Above 100 the coin was ahead of simply holding BTC. Rust = beat BTC over 2
+ * years; each twin has its own dash so the lines can be told apart. Hover or
+ * press a legend entry (or click a ringed dot in the grid) to pick one out.
  */
 export function TwinChart({
   twins,
@@ -42,7 +41,10 @@ export function TwinChart({
 }) {
   const [ref, width] = useWidth<HTMLDivElement>(640);
   const [hoverT, setHoverT] = useState<number | null>(null);
-  const [focusKey, setFocusKey] = useState<string | null>(null);
+  const [hoverKey, setHoverKey] = useState<string | null>(null);
+  const [pinned, setPinned] = useState<string | null>(null);
+  const focusKey = hoverKey ?? pinned;
+  const clipId = `wipe-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
 
   const values = twins
     .flatMap((twin) => twin.path.map((p) => p.vsBtc))
@@ -60,13 +62,40 @@ export function TwinChart({
   };
 
   const series = twins
-    .map((twin) => {
+    .map((twin, index) => {
       const points = twin.path.filter((p) => p.vsBtc > 0);
-      return { ...twin, points, last: points[points.length - 1] };
+      return {
+        ...twin,
+        points,
+        last: points[points.length - 1],
+        style: twinLineStyle(index, twin),
+      };
     })
     // The coin itself last, so it draws on top of its twins.
     .sort((a, b) => Number(a.own ?? false) - Number(b.own ?? false));
   const own = series.find((s) => s.own);
+  const plotted = series.filter((s) => !s.own);
+  const beatCount = plotted.filter((s) => s.beat).length;
+  const keys = series.map((s) => s.key).join("|");
+
+  // A ringed dot in the grid asks for its twin: pin that line and bring the
+  // chart into view.
+  useEffect(() => {
+    function onFocus(event: Event) {
+      const key = (event as CustomEvent<string>).detail;
+      if (!keys.split("|").includes(key)) return;
+      setPinned(key);
+      const still = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      ref.current?.scrollIntoView({
+        block: "center",
+        behavior: still ? "auto" : "smooth",
+      });
+    }
+    window.addEventListener(TWIN_FOCUS_EVENT, onFocus);
+    return () => window.removeEventListener(TWIN_FOCUS_EVENT, onFocus);
+  }, [keys, ref]);
 
   // End labels: sort by end height and push apart so they never overlap.
   const labels = series
@@ -106,62 +135,46 @@ export function TwinChart({
 
   return (
     <figure className="m-0">
-      <div className="text-muted mb-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
-        <span className="inline-flex items-center gap-1.5">
-          <svg width="16" height="8" aria-hidden>
-            <line
-              x1="0"
-              x2="16"
-              y1="4"
-              y2="4"
-              stroke="var(--accent)"
-              strokeWidth="2"
-            />
-          </svg>
-          ended ahead of BTC
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <svg width="16" height="8" aria-hidden>
-            <line
-              x1="0"
-              x2="16"
-              y1="4"
-              y2="4"
-              stroke="var(--mark-muted)"
-              strokeWidth="2"
-            />
-          </svg>
-          ended behind BTC
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <svg width="16" height="8" aria-hidden>
-            <line
-              x1="0"
-              x2="16"
-              y1="4"
-              y2="4"
-              stroke="var(--ink)"
-              strokeWidth="1"
-            />
-          </svg>
-          100 = level with BTC
-        </span>
+      <div className="mb-2 flex flex-wrap items-center gap-x-1 gap-y-0 text-xs">
+        {plotted.map((s) => (
+          <button
+            key={s.key}
+            type="button"
+            aria-pressed={pinned === s.key}
+            title={`${s.name}, from ${monthYear(s.start)}: ${s.beat ? "beat" : "lagged"} BTC over 2 years`}
+            onPointerEnter={() => setHoverKey(s.key)}
+            onPointerLeave={() => setHoverKey(null)}
+            onFocus={() => setHoverKey(s.key)}
+            onBlur={() => setHoverKey(null)}
+            onClick={() => setPinned((key) => (key === s.key ? null : s.key))}
+            className={`inline-flex min-h-11 items-center gap-1.5 border-b-2 px-1.5 transition-colors duration-150 sm:min-h-9 ${
+              pinned === s.key
+                ? "border-ink text-ink"
+                : "text-ink-body hover:border-rule border-transparent"
+            }`}
+          >
+            <LineSwatch style={s.style} />
+            <span className="num font-medium">{s.symbol}</span>
+            <span className="text-muted">{monthYear(s.start)}</span>
+          </button>
+        ))}
         {own && (
-          <span className="text-ink inline-flex items-center gap-1.5 font-medium">
-            <svg width="16" height="8" aria-hidden>
-              <line
-                x1="0"
-                x2="16"
-                y1="4"
-                y2="4"
-                stroke="var(--ink)"
-                strokeWidth="3"
-              />
-            </svg>
+          <span className="text-ink inline-flex min-h-9 items-center gap-1.5 px-1.5 font-medium">
+            <LineSwatch style={own.style} />
             what {own.symbol} really did
           </span>
         )}
       </div>
+      <p className="text-muted mb-3 text-xs">
+        {plotted.length === 0
+          ? ""
+          : beatCount === 0
+            ? `None of ${plotted.length === 5 ? "the five" : "these"} beat BTC over 2 years, so every line is grey.`
+            : beatCount === plotted.length
+              ? "Every one of these beat BTC over 2 years, so every line is rust."
+              : "Rust lines beat BTC over 2 years; grey lines did not."}{" "}
+        The solid line at 100 is level with BTC.
+      </p>
       <div ref={ref} className="relative [contain:inline-size]">
         <svg
           width={width}
@@ -175,6 +188,17 @@ export function TwinChart({
             .join("; ")}.`}
           className="block overflow-visible"
         >
+          <defs>
+            <clipPath id={clipId}>
+              <rect
+                className="wipe"
+                x={M.left - 4}
+                y={0}
+                width={plotW + 12}
+                height={height}
+              />
+            </clipPath>
+          </defs>
           {ticks.map((tick) => (
             <g key={tick}>
               <line
@@ -217,24 +241,27 @@ export function TwinChart({
             </text>
           ))}
 
-          {series.map((s) => {
-            const dim = focusKey !== null && focusKey !== s.key;
-            return (
-              <polyline
-                key={s.key}
-                points={s.points
-                  .map((p) => `${x(p.t).toFixed(1)},${y(p.vsBtc).toFixed(1)}`)
-                  .join(" ")}
-                fill="none"
-                stroke={strokeOf(s)}
-                strokeWidth={s.own ? 3 : focusKey === s.key ? 2.75 : 2}
-                strokeLinejoin="round"
-                strokeLinecap="round"
-                opacity={dim ? 0.25 : 1}
-                style={{ transition: "opacity 150ms ease-out" }}
-              />
-            );
-          })}
+          <g clipPath={`url(#${clipId})`}>
+            {series.map((s) => {
+              const dim = focusKey !== null && focusKey !== s.key;
+              return (
+                <polyline
+                  key={s.key}
+                  points={s.points
+                    .map((p) => `${x(p.t).toFixed(1)},${y(p.vsBtc).toFixed(1)}`)
+                    .join(" ")}
+                  fill="none"
+                  stroke={s.style.stroke}
+                  strokeDasharray={s.style.dash}
+                  strokeWidth={focusKey === s.key && !s.own ? 3 : s.style.width}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  opacity={dim ? 0.2 : 1}
+                  style={{ transition: "opacity 150ms ease-out" }}
+                />
+              );
+            })}
+          </g>
 
           {labels.map((label) => (
             <text
@@ -247,9 +274,10 @@ export function TwinChart({
                   ? "var(--ink)"
                   : "var(--muted)"
               }
-              className="num cursor-default"
-              onPointerEnter={() => setFocusKey(label.key)}
-              onPointerLeave={() => setFocusKey(null)}
+              fontWeight={focusKey === label.key ? 600 : 400}
+              className="num fade-late cursor-default"
+              onPointerEnter={() => setHoverKey(label.key)}
+              onPointerLeave={() => setHoverKey(null)}
             >
               {label.symbol}
             </text>
@@ -271,7 +299,7 @@ export function TwinChart({
                   cx={x(p.t)}
                   cy={y(p.vsBtc)}
                   r={4}
-                  fill={strokeOf(s)}
+                  fill={s.style.stroke}
                   stroke="var(--paper)"
                   strokeWidth={2}
                 />
@@ -332,9 +360,7 @@ export function TwinChart({
                 className="flex items-baseline justify-between gap-4 py-0.5"
               >
                 <span className="inline-flex items-center gap-1.5">
-                  <svg width="8" height="8" aria-hidden>
-                    <circle cx="4" cy="4" r="4" fill={strokeOf(s)} />
-                  </svg>
+                  <LineSwatch style={s.style} width={16} />
                   {s.symbol}
                 </span>
                 <span className="num">{vsBtcText(p.vsBtc)}</span>

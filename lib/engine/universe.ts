@@ -23,14 +23,16 @@ const EXCLUDED_TAGS = new Set([
 ]);
 
 /** Names that say the coin tracks another asset. */
-const NAME_PATTERN = /\b(wrapped|bridged|staked|restaked|tether|stablecoin|pegged)\b/i;
+const NAME_PATTERN =
+  /\b(wrapped|bridged|staked|restaked|tether|stablecoin|pegged)\b/i;
 
 /** Common wrapper and liquid-staking symbols: WBTC, wstETH, cbETH, rETH, HBTC, BTCB. */
 const SYMBOL_PATTERN =
   /^(w|st|wst|cb|r|we|wb|ws|h|t|f|b|v|e|x|sl|slis|solv|xsolv|uni|pump|mgw|bit|open|syrup|ms|puf|pz|sw|os|ez|rs)(btc|eth|sol|bnb|avax|trx|ht|okt|cro|usdc|usdt)x?$|^(btcb|ethx)$/i;
 
 /** Dollar-pegged symbols without tags in old snapshots. */
-const DOLLAR_SYMBOL = /^(usd[a-z0-9]{0,2}|[a-z]{0,2}usd|bitusd|bitcny|usnbt|nubits|ustc|usx|eusx)$/i;
+const DOLLAR_SYMBOL =
+  /^(usd[a-z0-9]{0,2}|[a-z]{0,2}usd|bitusd|bitcny|usnbt|nubits|ustc|usx|eusx)$/i;
 
 /** CMC ids that slip past the rules. Checked against /v1/cryptocurrency/map. */
 const EXCLUDED_IDS = new Set<number>([
@@ -72,7 +74,12 @@ export function isExcludedAsset(meta: AssetMeta): boolean {
 }
 
 /** Coins whose own fate we measure against: never treated as pegged to themselves. */
-export const REFERENCE_IDS = { btc: 1, eth: 1027, bnb: 1839, sol: 5426 } as const;
+export const REFERENCE_IDS = {
+  btc: 1,
+  eth: 1027,
+  bnb: 1839,
+  sol: 5426,
+} as const;
 
 /**
  * True when a coin's price stayed locked to a reference (BTC, ETH, USD ...) over
@@ -86,7 +93,10 @@ export const REFERENCE_IDS = { btc: 1, eth: 1027, bnb: 1839, sol: 5426 } as cons
  * @param prices     the coin's prices
  * @param reference  the reference price at the same weeks (1 for USD)
  */
-export function looksPegged(prices: readonly number[], reference: readonly number[]): boolean {
+export function looksPegged(
+  prices: readonly number[],
+  reference: readonly number[],
+): boolean {
   let min = Infinity;
   let max = 0;
   let count = 0;

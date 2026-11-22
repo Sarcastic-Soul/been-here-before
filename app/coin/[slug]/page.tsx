@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { CoinSearch } from "@/components/coin-search";
 import { CycleTable, PhaseTable } from "@/components/cycle-table";
 import { EpisodeTable } from "@/components/episode-table";
+import { LineSwatch } from "@/components/line-swatch";
 import { RateBar } from "@/components/rate-bar";
 import { Section } from "@/components/section";
 import { ReceiptDrawer } from "@/components/receipt-drawer";
@@ -30,6 +31,7 @@ import { addWeeks } from "@/lib/verdict/analyze";
 import { FIRST_REPLAY_WEEK, thenHref } from "@/lib/verdict/cases";
 import { getReceipt } from "@/lib/verdict/get-receipt";
 import { getVerdictOrSaved } from "@/lib/verdict/saved";
+import { twinLineStyle } from "@/lib/twin-style";
 import { toTwinSeries } from "@/lib/verdict/twin-series";
 import type { VerdictOk, VerdictRefused } from "@/lib/verdict/types";
 
@@ -115,7 +117,7 @@ function Verdict({
   ];
 
   return (
-    <article className="mx-auto max-w-[1360px] px-4 sm:px-8 lg:px-12">
+    <article className="appear mx-auto max-w-[1360px] px-4 sm:px-8 lg:px-12">
       {savedAt && <SavedBanner savedAt={savedAt} />}
       <div className="grid gap-10 pt-10 pb-12 lg:grid-cols-[1.35fr_1fr] lg:gap-16 lg:pt-12">
         <div className="rise">
@@ -220,7 +222,7 @@ function Verdict({
           <div className="grid gap-10 lg:grid-cols-[2fr_1fr]">
             <TwinChart twins={toTwinSeries(data.twins)} />
             <ol className="border-rule border-t">
-              {data.twins.map((twin) => {
+              {data.twins.map((twin, index) => {
                 const e = twin.episode;
                 const relative = relativeToBtc(e.ret104w, e.btcRet104w);
                 return (
@@ -229,7 +231,14 @@ function Verdict({
                     className="border-rule border-b py-3"
                   >
                     <div className="flex items-baseline justify-between gap-3">
-                      <span className="font-medium">
+                      <span className="inline-flex items-baseline gap-2 font-medium">
+                        <span className="self-center">
+                          <LineSwatch
+                            style={twinLineStyle(index, {
+                              beat: e.beatBtc104w,
+                            })}
+                          />
+                        </span>
                         {e.name}{" "}
                         <span className="num text-muted text-xs">
                           {e.symbol}
@@ -407,7 +416,7 @@ function Refused({ data }: { data: VerdictRefused }) {
           ? "Gone from the top 5,000."
           : "Outside what we cover.";
   return (
-    <article className="mx-auto max-w-[1360px] px-4 py-14 sm:px-8 lg:px-12">
+    <article className="appear mx-auto max-w-[1360px] px-4 py-14 sm:px-8 lg:px-12">
       <p className="text-muted text-[13px]">
         {data.coin?.name} <span className="num">({data.coin?.symbol})</span>
       </p>

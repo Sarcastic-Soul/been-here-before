@@ -8,7 +8,11 @@ export function weekDates(count: number, start = "2018-01-07"): string[] {
   );
 }
 
-export function point(week: number, price: number, extra: Partial<SeriesPoint> = {}): SeriesPoint {
+export function point(
+  week: number,
+  price: number,
+  extra: Partial<SeriesPoint> = {},
+): SeriesPoint {
   return {
     week,
     coinId: 1000,

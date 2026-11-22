@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { assembleLineages, LINEAGE_RULES, lineageRootOf, priceFactorOf, type LineageRule } from "@/lib/engine/lineage";
+import {
+  assembleLineages,
+  LINEAGE_RULES,
+  lineageRootOf,
+  priceFactorOf,
+  type LineageRule,
+} from "@/lib/engine/lineage";
 import type { SeriesPoint } from "@/lib/engine/types";
 
 import { point } from "./helpers";
@@ -9,7 +15,8 @@ const MATIC = 3890;
 const POL = 28321;
 const LUNA = 4172;
 
-const weekOf = (day: string) => (day === "2024-09-08" ? 10 : day === "2024-07-07" ? 5 : 0);
+const weekOf = (day: string) =>
+  day === "2024-09-08" ? 10 : day === "2024-07-07" ? 5 : 0;
 
 describe("lineage", () => {
   it("keeps MATIC and POL as one coin", () => {
@@ -37,7 +44,14 @@ describe("lineage", () => {
 
   it("converts successor prices with the swap ratio", () => {
     const rules: LineageRule[] = [
-      { from: 1, to: 2, ratio: 0.01, switchDate: "2024-09-08", kind: "migration", note: "" },
+      {
+        from: 1,
+        to: 2,
+        ratio: 0.01,
+        switchDate: "2024-09-08",
+        kind: "migration",
+        note: "",
+      },
     ];
     const byId = new Map([
       [1, [point(9, 1, { coinId: 1 })]],
@@ -49,7 +63,14 @@ describe("lineage", () => {
 
   it("follows a merge through the successor without joining the lineages", () => {
     const rules: LineageRule[] = [
-      { from: 1, to: 2, ratio: 0.5, switchDate: "2024-07-07", kind: "merge", note: "" },
+      {
+        from: 1,
+        to: 2,
+        ratio: 0.5,
+        switchDate: "2024-07-07",
+        kind: "merge",
+        note: "",
+      },
     ];
     const byId = new Map([
       [1, [point(4, 1, { coinId: 1 })]],
@@ -66,7 +87,9 @@ describe("lineage", () => {
   });
 
   it("treats LUNA's collapse as a death, not a migration", () => {
-    expect(LINEAGE_RULES.some((rule) => rule.from === LUNA || rule.to === LUNA)).toBe(false);
+    expect(
+      LINEAGE_RULES.some((rule) => rule.from === LUNA || rule.to === LUNA),
+    ).toBe(false);
   });
 
   it("has one rule per old id and switch dates on Sundays", () => {

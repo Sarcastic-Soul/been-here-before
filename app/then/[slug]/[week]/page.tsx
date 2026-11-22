@@ -108,7 +108,7 @@ function Replay({ data }: { data: PastOk }) {
     : null;
 
   return (
-    <article className="mx-auto max-w-[1360px] px-4 sm:px-8 lg:px-12">
+    <article className="appear mx-auto max-w-[1360px] px-4 sm:px-8 lg:px-12">
       <p className="text-muted pt-8 text-[13px]">
         <Link href="/then" className="link text-ink">
           Time machine
@@ -317,7 +317,7 @@ function CallCheck({
 
 function Refused({ data, week }: { data: PastRefused; week: string }) {
   return (
-    <article className="mx-auto max-w-[1360px] px-4 py-14 sm:px-8 lg:px-12">
+    <article className="appear mx-auto max-w-[1360px] px-4 py-14 sm:px-8 lg:px-12">
       <p className="text-muted text-[13px]">
         <Link href="/then" className="link text-ink">
           Time machine

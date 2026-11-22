@@ -22,7 +22,11 @@ describe("computeFeatures", () => {
     const dates = weekDates(60);
     const listed = computeFeatures([point(52, 1)], dates, "2018-01-07");
     expect(listed[0]?.ageWeeks).toBe(52);
-    const lateDate = computeFeatures([point(10, 1), point(20, 1)], dates, "2019-06-01");
+    const lateDate = computeFeatures(
+      [point(10, 1), point(20, 1)],
+      dates,
+      "2019-06-01",
+    );
     expect(lateDate.map((f) => f?.ageWeeks)).toEqual([0, 10]);
   });
 

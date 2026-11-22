@@ -26,25 +26,119 @@ export interface LineageRule {
 }
 
 export const LINEAGE_RULES: readonly LineageRule[] = [
-  { from: 1904, to: 3077, ratio: 100, switchDate: "2018-08-05", kind: "migration", note: "VEN to VET mainnet swap, 1 VEN = 100 VET (VeChain, Jul 2018)" },
-  { from: 1776, to: 3635, ratio: 27.643, switchDate: "2020-08-02", kind: "merge", note: "MCO to CRO swap, 1 MCO = 27.643 CRO (Crypto.com, Aug 2020)" },
-  { from: 2239, to: 7278, ratio: 0.01, switchDate: "2020-10-04", kind: "migration", note: "LEND to AAVE, 100 LEND = 1 AAVE (Aave, Oct 2020)" },
-  { from: 2603, to: 9040, ratio: 0.001, switchDate: "2021-04-04", kind: "migration", note: "NPXS to PUNDIX redenomination, 1000 NPXS = 1 PUNDIX (Pundi X, Apr 2021)" },
-  { from: 1982, to: 9444, ratio: 1, switchDate: "2021-08-01", kind: "migration", note: "KNC legacy to KNC v2, 1:1 (Kyber, Jul 2021)" },
-  { from: 3718, to: 16086, ratio: 1000, switchDate: "2022-01-16", kind: "migration", note: "BTTOLD to BTT redenomination, 1 BTTOLD = 1000 BTT (BitTorrent, Jan 2022)" },
-  { from: 5566, to: 17751, ratio: 4.78318863, switchDate: "2022-02-13", kind: "merge", note: "KEEP to T, 1 KEEP = 4.783 T (Threshold, Jan 2022)" },
-  { from: 4761, to: 17751, ratio: 3.25924249, switchDate: "2022-02-13", kind: "merge", note: "NU to T, 1 NU = 3.259 T (Threshold, Jan 2022)" },
-  { from: 2424, to: 3773, ratio: 0.43335, switchDate: "2024-07-07", kind: "merge", note: "AGIX to FET (ASI alliance), 1 AGIX = 0.43335 FET (Jul 2024)" },
-  { from: 3911, to: 3773, ratio: 0.433226, switchDate: "2024-07-07", kind: "merge", note: "OCEAN to FET (ASI alliance), 1 OCEAN = 0.433226 FET (Jul 2024)" },
-  { from: 3890, to: 28321, ratio: 1, switchDate: "2024-09-08", kind: "migration", note: "MATIC to POL, 1:1 (Polygon, Sep 2024)" },
-  { from: 3513, to: 32684, ratio: 1, switchDate: "2025-01-05", kind: "migration", note: "FTM to S, 1:1 (Sonic, Jan 2025)" },
-  { from: 1765, to: 36462, ratio: 1, switchDate: "2025-06-01", kind: "migration", note: "EOS to A, 1:1 (Vaulta, May 2025)" },
+  {
+    from: 1904,
+    to: 3077,
+    ratio: 100,
+    switchDate: "2018-08-05",
+    kind: "migration",
+    note: "VEN to VET mainnet swap, 1 VEN = 100 VET (VeChain, Jul 2018)",
+  },
+  {
+    from: 1776,
+    to: 3635,
+    ratio: 27.643,
+    switchDate: "2020-08-02",
+    kind: "merge",
+    note: "MCO to CRO swap, 1 MCO = 27.643 CRO (Crypto.com, Aug 2020)",
+  },
+  {
+    from: 2239,
+    to: 7278,
+    ratio: 0.01,
+    switchDate: "2020-10-04",
+    kind: "migration",
+    note: "LEND to AAVE, 100 LEND = 1 AAVE (Aave, Oct 2020)",
+  },
+  {
+    from: 2603,
+    to: 9040,
+    ratio: 0.001,
+    switchDate: "2021-04-04",
+    kind: "migration",
+    note: "NPXS to PUNDIX redenomination, 1000 NPXS = 1 PUNDIX (Pundi X, Apr 2021)",
+  },
+  {
+    from: 1982,
+    to: 9444,
+    ratio: 1,
+    switchDate: "2021-08-01",
+    kind: "migration",
+    note: "KNC legacy to KNC v2, 1:1 (Kyber, Jul 2021)",
+  },
+  {
+    from: 3718,
+    to: 16086,
+    ratio: 1000,
+    switchDate: "2022-01-16",
+    kind: "migration",
+    note: "BTTOLD to BTT redenomination, 1 BTTOLD = 1000 BTT (BitTorrent, Jan 2022)",
+  },
+  {
+    from: 5566,
+    to: 17751,
+    ratio: 4.78318863,
+    switchDate: "2022-02-13",
+    kind: "merge",
+    note: "KEEP to T, 1 KEEP = 4.783 T (Threshold, Jan 2022)",
+  },
+  {
+    from: 4761,
+    to: 17751,
+    ratio: 3.25924249,
+    switchDate: "2022-02-13",
+    kind: "merge",
+    note: "NU to T, 1 NU = 3.259 T (Threshold, Jan 2022)",
+  },
+  {
+    from: 2424,
+    to: 3773,
+    ratio: 0.43335,
+    switchDate: "2024-07-07",
+    kind: "merge",
+    note: "AGIX to FET (ASI alliance), 1 AGIX = 0.43335 FET (Jul 2024)",
+  },
+  {
+    from: 3911,
+    to: 3773,
+    ratio: 0.433226,
+    switchDate: "2024-07-07",
+    kind: "merge",
+    note: "OCEAN to FET (ASI alliance), 1 OCEAN = 0.433226 FET (Jul 2024)",
+  },
+  {
+    from: 3890,
+    to: 28321,
+    ratio: 1,
+    switchDate: "2024-09-08",
+    kind: "migration",
+    note: "MATIC to POL, 1:1 (Polygon, Sep 2024)",
+  },
+  {
+    from: 3513,
+    to: 32684,
+    ratio: 1,
+    switchDate: "2025-01-05",
+    kind: "migration",
+    note: "FTM to S, 1:1 (Sonic, Jan 2025)",
+  },
+  {
+    from: 1765,
+    to: 36462,
+    ratio: 1,
+    switchDate: "2025-06-01",
+    kind: "migration",
+    note: "EOS to A, 1:1 (Vaulta, May 2025)",
+  },
 ];
 
 /** CMC id to lineage root id, after applying migrations (not merges). */
-export function lineageRootOf(rules: readonly LineageRule[] = LINEAGE_RULES): Map<number, number> {
+export function lineageRootOf(
+  rules: readonly LineageRule[] = LINEAGE_RULES,
+): Map<number, number> {
   const parent = new Map<number, number>();
-  for (const rule of rules) if (rule.kind === "migration") parent.set(rule.to, rule.from);
+  for (const rule of rules)
+    if (rule.kind === "migration") parent.set(rule.to, rule.from);
   const root = new Map<number, number>();
   for (const id of parent.keys()) {
     let current = id;
@@ -59,10 +153,13 @@ export function lineageRootOf(rules: readonly LineageRule[] = LINEAGE_RULES): Ma
  * 1 VEN became 100 VET, so a VET price times 100 is comparable with VEN history.
  * Ids not in the map use 1. Merges are not included: the merged coin's series ends.
  */
-export function priceFactorOf(rules: readonly LineageRule[] = LINEAGE_RULES): Map<number, number> {
+export function priceFactorOf(
+  rules: readonly LineageRule[] = LINEAGE_RULES,
+): Map<number, number> {
   const factor = new Map<number, number>();
   for (const rule of rules) {
-    if (rule.kind === "migration") factor.set(rule.to, (factor.get(rule.from) ?? 1) * rule.ratio);
+    if (rule.kind === "migration")
+      factor.set(rule.to, (factor.get(rule.from) ?? 1) * rule.ratio);
   }
   return factor;
 }
@@ -117,7 +214,11 @@ export function assembleLineages(
       fromWeek = until;
       id = rule.to;
     }
-    if (series.length) lineages.set(root, series.sort((a, b) => a.week - b.week));
+    if (series.length)
+      lineages.set(
+        root,
+        series.sort((a, b) => a.week - b.week),
+      );
   }
   return lineages;
 }

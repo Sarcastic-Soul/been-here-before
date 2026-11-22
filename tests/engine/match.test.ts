@@ -14,16 +14,31 @@ import { isExcludedAsset, looksPegged } from "@/lib/engine/universe";
 
 const target = { rankAdj: 100, drawdown: 0.8, ageWeeks: 150 };
 
-function row(lineageId: number, week: string, extra: Partial<CandidateRow> = {}): CandidateRow {
-  return { lineageId, week, rankAdj: 100, drawdown: 0.8, ageWeeks: 150, ...extra };
+function row(
+  lineageId: number,
+  week: string,
+  extra: Partial<CandidateRow> = {},
+): CandidateRow {
+  return {
+    lineageId,
+    week,
+    rankAdj: 100,
+    drawdown: 0.8,
+    ageWeeks: 150,
+    ...extra,
+  };
 }
 
 describe("bands", () => {
   it("uses rank x1.5, drawdown +-10 points and the same age bucket", () => {
     expect(inBands(target, row(1, "2019-01-06", { rankAdj: 67 }))).toBe(true);
     expect(inBands(target, row(1, "2019-01-06", { rankAdj: 151 }))).toBe(false);
-    expect(inBands(target, row(1, "2019-01-06", { drawdown: 0.69 }))).toBe(false);
-    expect(inBands(target, row(1, "2019-01-06", { ageWeeks: 210 }))).toBe(false);
+    expect(inBands(target, row(1, "2019-01-06", { drawdown: 0.69 }))).toBe(
+      false,
+    );
+    expect(inBands(target, row(1, "2019-01-06", { ageWeeks: 210 }))).toBe(
+      false,
+    );
     expect(ageBucket(51)).toBe(0);
     expect(ageBucket(52)).toBe(1);
     expect(ageBucket(1000)).toBe(3);
@@ -37,9 +52,15 @@ describe("widening steps", () => {
     expect(factors).toEqual([...factors].sort((a, b) => a - b));
     expect(drawdowns).toEqual([...drawdowns].sort((a, b) => a - b));
     const wide = BAND_STEPS[BAND_STEPS.length - 1];
-    expect(inBands(target, row(1, "2019-01-06", { rankAdj: 151 }), wide)).toBe(true);
-    expect(inBands(target, row(1, "2019-01-06", { drawdown: 0.6 }), wide)).toBe(true);
-    expect(inBands(target, row(1, "2019-01-06", { ageWeeks: 210 }), wide)).toBe(false);
+    expect(inBands(target, row(1, "2019-01-06", { rankAdj: 151 }), wide)).toBe(
+      true,
+    );
+    expect(inBands(target, row(1, "2019-01-06", { drawdown: 0.6 }), wide)).toBe(
+      true,
+    );
+    expect(inBands(target, row(1, "2019-01-06", { ageWeeks: 210 }), wide)).toBe(
+      false,
+    );
   });
 
   it("never reaches BTC's rank 1, even for rank 2", () => {
@@ -101,7 +122,12 @@ describe("cycles and phases", () => {
 });
 
 describe("universe", () => {
-  const meta = (name: string, symbol: string, tags: string[] = [], id = 99999) => ({
+  const meta = (
+    name: string,
+    symbol: string,
+    tags: string[] = [],
+    id = 99999,
+  ) => ({
     id,
     name,
     symbol,
@@ -113,7 +139,9 @@ describe("universe", () => {
     expect(isExcludedAsset(meta("Tether", "USDT"))).toBe(true);
     expect(isExcludedAsset(meta("Wrapped Bitcoin", "WBTC"))).toBe(true);
     expect(isExcludedAsset(meta("Lido Staked ETH", "stETH"))).toBe(true);
-    expect(isExcludedAsset(meta("Some Coin", "SOME", ["stablecoin"]))).toBe(true);
+    expect(isExcludedAsset(meta("Some Coin", "SOME", ["stablecoin"]))).toBe(
+      true,
+    );
     expect(isExcludedAsset(meta("NuBits", "USNBT"))).toBe(true);
   });
 
@@ -121,10 +149,16 @@ describe("universe", () => {
     expect(isExcludedAsset(meta("Bitcoin", "BTC"))).toBe(false);
     expect(isExcludedAsset(meta("Ethereum", "ETH"))).toBe(false);
     expect(isExcludedAsset(meta("Filecoin", "FIL"))).toBe(false);
-    expect(isExcludedAsset(meta("Maker", "MKR", ["stablecoin-protocol"]))).toBe(false);
+    expect(isExcludedAsset(meta("Maker", "MKR", ["stablecoin-protocol"]))).toBe(
+      false,
+    );
     expect(isExcludedAsset(meta("Rocket Pool", "RPL"))).toBe(false);
-    expect(isExcludedAsset(meta("Lido DAO", "LDO", ["liquid-staking-derivatives"]))).toBe(false);
-    expect(isExcludedAsset(meta("DigixDAO", "DGD", ["stablecoin"], 1229))).toBe(false);
+    expect(
+      isExcludedAsset(meta("Lido DAO", "LDO", ["liquid-staking-derivatives"])),
+    ).toBe(false);
+    expect(isExcludedAsset(meta("DigixDAO", "DGD", ["stablecoin"], 1229))).toBe(
+      false,
+    );
     expect(isExcludedAsset(meta("StableCoin", "SBC", [], 40))).toBe(false);
   });
 });
@@ -132,7 +166,12 @@ describe("universe", () => {
 describe("looksPegged", () => {
   it("flags prices locked to a reference", () => {
     const btc = [100, 200, 150, 300, 250, 400, 120, 90, 60, 500];
-    expect(looksPegged(btc.map((p) => p * 1.001), btc)).toBe(true);
+    expect(
+      looksPegged(
+        btc.map((p) => p * 1.001),
+        btc,
+      ),
+    ).toBe(true);
     expect(looksPegged(Array(10).fill(1.01), Array(10).fill(1))).toBe(true);
   });
 

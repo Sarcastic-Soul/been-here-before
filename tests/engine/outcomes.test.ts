@@ -55,7 +55,11 @@ describe("computeOutcomes", () => {
   it("flags reaching the top 20, but not through a merge successor's rank", () => {
     const viaOwn = [point(0, 1), point(4, 2, { rankAdj: 15 }), point(10, 1)];
     expect(computeOutcomes(viaOwn, btc, 19, 10)[0].reachedTop20).toBe(true);
-    const viaMerge = [point(0, 1), point(4, 2, { rankAdj: 15, continuation: true }), point(10, 1)];
+    const viaMerge = [
+      point(0, 1),
+      point(4, 2, { rankAdj: 15, continuation: true }),
+      point(10, 1),
+    ];
     expect(computeOutcomes(viaMerge, btc, 19, 10)[0].reachedTop20).toBe(false);
   });
 });

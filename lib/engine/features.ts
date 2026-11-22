@@ -3,7 +3,10 @@ import type { Features, SeriesPoint } from "./types";
 const WEEK_MS = 7 * 86_400_000;
 
 function weeksBetween(fromDay: string, toDay: string): number {
-  return Math.floor((Date.parse(`${toDay}T00:00:00Z`) - Date.parse(`${fromDay}T00:00:00Z`)) / WEEK_MS);
+  return Math.floor(
+    (Date.parse(`${toDay}T00:00:00Z`) - Date.parse(`${fromDay}T00:00:00Z`)) /
+      WEEK_MS,
+  );
 }
 
 /**

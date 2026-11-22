@@ -123,6 +123,71 @@ body {
   }
 }
 
+/*
+ * The big "k of n" number. A registered integer can be animated, and a CSS
+ * counter prints it, so it counts up with no client JavaScript. Without motion
+ * it simply shows the final value.
+ */
+@property --n {
+  syntax: "<integer>";
+  initial-value: 0;
+  inherits: false;
+}
+.count-up {
+  --n: var(--to);
+  counter-reset: n var(--n);
+}
+.count-up::after {
+  content: counter(n);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Fresh content fades in where the skeleton was. */
+  .appear {
+    animation: appear 280ms ease-out both;
+  }
+  @keyframes appear {
+    from {
+      opacity: 0;
+    }
+  }
+  .count-up {
+    animation: count-up var(--count-ms, 600ms) cubic-bezier(0.22, 1, 0.36, 1)
+      var(--count-delay, 0ms) both;
+  }
+  @keyframes count-up {
+    from {
+      --n: 0;
+    }
+  }
+  /* Episode dots fill in one by one; the delay comes from the server. */
+  .dot-in {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: dot-in 260ms cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms) both;
+  }
+  @keyframes dot-in {
+    from {
+      opacity: 0;
+      transform: scale(0.35);
+    }
+  }
+  /* Twin lines are revealed left to right by a clip that widens. */
+  .wipe {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: wipe 850ms cubic-bezier(0.33, 1, 0.68, 1) 250ms both;
+  }
+  @keyframes wipe {
+    from {
+      transform: scaleX(0);
+    }
+  }
+  .fade-late {
+    animation: appear 300ms ease-out 950ms both;
+  }
+}
+
 dialog.drawer::backdrop {
   background: rgb(20 17 14 / 0.45);
 }

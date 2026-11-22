@@ -1,6 +1,8 @@
 import Link from "next/link";
+import type { CSSProperties } from "react";
 
 import { MIN_EPISODES } from "@/lib/engine/verdict";
+import { dotTimeline } from "@/lib/motion";
 import {
   count,
   drawdownPct,
@@ -11,7 +13,7 @@ import {
 } from "@/lib/format";
 import type { VerdictOk } from "@/lib/verdict/types";
 
-import { EpisodeDots } from "./episode-dots";
+import { EpisodeDots, episodeKey } from "./episode-dots";
 
 /** Headline block: who the coin is today, the verdict, and the count behind it. */
 export function VerdictSummary({
@@ -27,6 +29,7 @@ export function VerdictSummary({
   const Heading = headingLevel === 1 ? "h1" : "h2";
   const { bands } = data;
   const widened = (bands.step ?? 0) > 0;
+  const time = dotTimeline(data.episodes.length, beatBtc.k);
   const widerRule =
     bands.rankFactor && bands.drawdownBand
       ? `rank ×${bands.rankFactor} and drawdown ±${Math.round(bands.drawdownBand * 100)} points`
@@ -62,7 +65,20 @@ export function VerdictSummary({
       ) : (
         <div className="mt-4 flex flex-wrap items-end gap-x-7 gap-y-3">
           <p className="text-accent m-0 font-serif text-[clamp(72px,8vw,104px)] leading-[0.82]">
-            {beatBtc.k}
+            {/* Counts up as the dots that beat BTC land; the real number is for screen readers and copying. */}
+            <span
+              aria-hidden
+              className="count-up inline-block text-right tabular-nums"
+              style={
+                {
+                  "--to": beatBtc.k,
+                  "--count-delay": `${time.beatStart}ms`,
+                  "--count-ms": `${time.beatWindow + 260}ms`,
+                  minWidth: `${String(beatBtc.k).length * 0.55}em`,
+                } as CSSProperties
+              }
+            />
+            <span className="sr-only">{beatBtc.k}</span>
             <span className="text-ink text-[0.38em]">
               {" "}
               of {count(beatBtc.n)}
@@ -87,7 +103,10 @@ export function VerdictSummary({
 
       {data.episodes.length > 0 && (
         <div className="mt-6">
-          <EpisodeDots episodes={data.episodes} />
+          <EpisodeDots
+            episodes={data.episodes}
+            twinKeys={data.twins.map((twin) => episodeKey(twin.episode))}
+          />
         </div>
       )}
 
