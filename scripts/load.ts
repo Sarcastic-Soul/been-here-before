@@ -81,11 +81,13 @@ const TABLES: { table: string; file: string; types: Record<string, string> }[] =
 const SEED_CURRENT_STATE = `
   INSERT INTO current_state (
     coin_id, lineage_id, as_of, source, rank_raw, rank_adj, price_usd, market_cap_usd,
-    volume_24h_usd, running_peak_usd, drawdown, weeks_since_peak, age_weeks
+    volume_24h_usd, running_peak_usd, drawdown, weeks_since_peak, age_weeks, peak_at, born_at
   )
   SELECT cw.coin_id, cw.lineage_id, cw.week::timestamptz, 'weekly', cw.rank_raw, cw.rank_adj,
     cw.price_usd / c.price_factor, cw.market_cap_usd, cw.volume_24h_usd, cw.running_peak_usd,
-    cw.drawdown, cw.weeks_since_peak, cw.age_weeks
+    cw.drawdown, cw.weeks_since_peak, cw.age_weeks,
+    cw.week::timestamptz - make_interval(weeks => cw.weeks_since_peak),
+    cw.week::timestamptz - make_interval(weeks => cw.age_weeks)
   FROM coin_weeks cw
   JOIN coins c ON c.id = cw.coin_id
   WHERE cw.week = (SELECT max(week) FROM market_weeks)

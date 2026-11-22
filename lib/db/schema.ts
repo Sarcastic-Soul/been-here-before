@@ -110,6 +110,10 @@ export const currentState = pgTable("current_state", {
   drawdown: real("drawdown").notNull(),
   weeksSincePeak: smallint("weeks_since_peak").notNull(),
   ageWeeks: smallint("age_weeks").notNull(),
+  /** When the running peak was set; weeks_since_peak is counted from here. */
+  peakAt: timestamp("peak_at", { withTimezone: true }),
+  /** Listing date or first sighting of the lineage; age_weeks is counted from here. */
+  bornAt: timestamp("born_at", { withTimezone: true }),
 });
 
 export const calibrationPoints = pgTable(
