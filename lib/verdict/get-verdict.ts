@@ -47,7 +47,7 @@ const coinColumns = {
 
 /** BTC price per snapshot week. */
 async function btcPrices(): Promise<Map<string, number>> {
-  "use cache";
+  "use cache: remote";
   cacheLife("days");
   cacheTag("history");
   const rows = await db()
@@ -74,8 +74,14 @@ async function findCoin(slug: string) {
   return row ?? null;
 }
 
+/**
+ * The verdict for one coin. Cached in the shared remote cache (Vercel Runtime
+ * Cache), not per serverless instance, so a page view rarely touches the
+ * database. The daily cron expires the "daily" tag and /api/cron/prewarm fills
+ * the top coins again.
+ */
 export async function getVerdict(slug: string): Promise<VerdictResponse> {
-  "use cache";
+  "use cache: remote";
   cacheLife("days");
   cacheTag("daily");
 

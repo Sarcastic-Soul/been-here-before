@@ -17,7 +17,7 @@ export interface PanelStats {
 
 /** Size of the weekly panel, for the home page. Changes only when the panel is rebuilt. */
 export async function getPanelStats(): Promise<PanelStats> {
-  "use cache";
+  "use cache: remote";
   cacheLife("days");
   cacheTag("history");
 

@@ -27,7 +27,7 @@ export interface Calibration {
 
 /** Walk-forward results written by scripts/calibrate.ts. Null until it has run. */
 export async function getCalibration(horizon = 104): Promise<Calibration | null> {
-  "use cache";
+  "use cache: remote";
   cacheLife("days");
   cacheTag("history");
 

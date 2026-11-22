@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
     "/": ["./public/precomputed/**/*"],
     "/coin/[slug]": ["./public/precomputed/**/*"],
     "/api/verdict": ["./public/precomputed/**/*"],
+    "/api/cron/prewarm": ["./public/precomputed/**/*"],
   },
   partialPrefetching: true,
   turbopack: {

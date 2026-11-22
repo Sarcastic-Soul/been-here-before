@@ -67,7 +67,9 @@ export function dailyStates(
   anchors: ReadonlyMap<number, Anchor>,
   asOf: Date,
 ): { states: StateRow[]; newCoins: NewCoin[]; excluded: number } {
-  const sorted = rows.filter((row) => row.price > 0).sort((a, b) => a.cmcRank - b.cmcRank || a.id - b.id);
+  const sorted = rows
+    .filter((row) => row.price > 0)
+    .sort((a, b) => a.cmcRank - b.cmcRank || a.id - b.id);
   const states: StateRow[] = [];
   const newCoins: NewCoin[] = [];
   const seenLineages = new Set<number>();
@@ -77,7 +79,8 @@ export function dailyStates(
   for (const row of sorted) {
     const coin = known.get(row.id);
     const excludedReason =
-      coin?.excludedReason ?? (isExcludedAsset({ ...row, tags: row.tags }) ? "rule" : null);
+      coin?.excludedReason ??
+      (isExcludedAsset({ ...row, tags: row.tags }) ? "rule" : null);
     if (!coin) {
       newCoins.push({
         id: row.id,
@@ -117,8 +120,14 @@ export function dailyStates(
       volume24hUsd: row.volume24h,
       runningPeakUsd: runningPeak,
       drawdown: runningPeak > 0 ? 1 - rootPrice / runningPeak : 0,
-      weeksSincePeak: Math.max(0, Math.floor((asOf.getTime() - peakAt.getTime()) / WEEK_MS)),
-      ageWeeks: Math.max(0, Math.floor((asOf.getTime() - bornAt.getTime()) / WEEK_MS)),
+      weeksSincePeak: Math.max(
+        0,
+        Math.floor((asOf.getTime() - peakAt.getTime()) / WEEK_MS),
+      ),
+      ageWeeks: Math.max(
+        0,
+        Math.floor((asOf.getTime() - bornAt.getTime()) / WEEK_MS),
+      ),
       peakAt,
       bornAt,
     });

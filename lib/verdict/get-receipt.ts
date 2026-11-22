@@ -13,7 +13,7 @@ import type { Receipt } from "./types";
  * never holds the key (it goes in a header).
  */
 export async function getReceipt(coinId: number): Promise<Receipt | null> {
-  "use cache";
+  "use cache: remote";
   cacheLife("days");
   cacheTag("daily");
 

@@ -69,7 +69,7 @@ function SavedBanner({ savedAt }: { savedAt: string }) {
       role="status"
       className="border-accent text-ink-body mt-6 border-l-2 pl-4 text-sm"
     >
-      The live database did not answer, so this is a saved copy from{" "}
+      The live database did not answer in time, so this is a saved copy from{" "}
       {longDate(savedAt)}. The numbers are the same kind, just not today&apos;s.
     </p>
   );
