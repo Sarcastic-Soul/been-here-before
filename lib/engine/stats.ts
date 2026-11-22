@@ -56,8 +56,14 @@ export function halfYear(week: string): string {
 /**
  * Design effect of a share whose items come in clusters: the cluster-robust
  * (linearized) variance of k / n divided by the plain binomial variance.
- * Never below 1. Returns 1 when it cannot be measured: fewer than two
- * clusters, or every item has the same outcome (zero variance).
+ * Never below 1.
+ *
+ * When the variance cannot be measured (fewer than two clusters, or every
+ * item has the same outcome, so the variance is zero), it assumes the worst
+ * case: items in the same cluster move together completely. The design effect
+ * is then sum(n_c^2) / n, so the effective n is n^2 / sum(n_c^2), Kish's
+ * effective number of clusters. A "0 of 20" spread over a few half-years
+ * therefore counts as a handful of independent looks, not 20.
  */
 export function designEffect(
   clusters: readonly { k: number; n: number }[],
@@ -65,7 +71,11 @@ export function designEffect(
   const c = clusters.length;
   const n = clusters.reduce((sum, cl) => sum + cl.n, 0);
   const k = clusters.reduce((sum, cl) => sum + cl.k, 0);
-  if (c < 2 || n === 0 || k === 0 || k === n) return 1;
+  if (n === 0) return 1;
+  if (c < 2 || k === 0 || k === n) {
+    const sizes = clusters.reduce((sum, cl) => sum + cl.n * cl.n, 0);
+    return Math.max(1, sizes / n);
+  }
   const p = k / n;
   const squares = clusters.reduce((sum, cl) => sum + (cl.k - p * cl.n) ** 2, 0);
   const robust = ((c / (c - 1)) * squares) / (n * n);
@@ -76,6 +86,8 @@ export function designEffect(
 /**
  * Share of items that hit, with a Wilson interval computed at the effective
  * sample size n / design effect instead of n. k, n and p stay the raw counts.
+ * When the design effect cannot be measured the worst case is assumed (see
+ * designEffect).
  */
 export function clusteredRate<T>(
   items: readonly T[],

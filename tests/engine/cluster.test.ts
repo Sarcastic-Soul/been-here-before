@@ -36,21 +36,45 @@ describe("halfYear", () => {
 });
 
 describe("designEffect", () => {
-  it("is 1 when it cannot be measured", () => {
-    expect(designEffect([{ k: 3, n: 10 }])).toBe(1);
+  it("assumes full bunching inside a half-year when it cannot be measured", () => {
+    // One cluster: all episodes move together, so n = 10 counts as 1.
+    expect(designEffect([{ k: 3, n: 10 }])).toBe(10);
+    // Every outcome the same: design effect is sum(n_c^2) / n.
     expect(
       designEffect([
         { k: 0, n: 10 },
         { k: 0, n: 10 },
       ]),
-    ).toBe(1);
+    ).toBe(10);
     expect(
       designEffect([
         { k: 5, n: 5 },
         { k: 5, n: 5 },
       ]),
-    ).toBe(1);
+    ).toBe(5);
+    // Uneven clusters of 3, 2, 2, 1, 1, 1 (n = 10): sum(n_c^2) / n = 20 / 10.
+    expect(
+      designEffect([
+        { k: 0, n: 3 },
+        { k: 0, n: 2 },
+        { k: 0, n: 2 },
+        { k: 0, n: 1 },
+        { k: 0, n: 1 },
+        { k: 0, n: 1 },
+      ]),
+    ).toBeCloseTo((9 + 4 + 4 + 1 + 1 + 1) / 10, 10);
+  });
+
+  it("is 1 for no episodes and never below 1", () => {
     expect(designEffect([])).toBe(1);
+    // Every cluster holds one episode: nothing bunches.
+    expect(
+      designEffect([
+        { k: 0, n: 1 },
+        { k: 0, n: 1 },
+        { k: 0, n: 1 },
+      ]),
+    ).toBe(1);
   });
 
   it("is never below 1 when clusters look alike", () => {
@@ -103,6 +127,62 @@ describe("clusteredRate", () => {
     expect(r.nEff).toBeLessThan(10);
     expect(r.lo).toBeLessThan(plain.lo);
     expect(r.hi).toBeGreaterThan(plain.hi);
+  });
+
+  it("treats 0 of n as bunched when the design effect cannot be measured", () => {
+    // 20 episodes, none beat BTC, 5 half-years of 4 each. The plain range
+    // would be 0-16%; the worst case counts 5 independent looks.
+    const list = items([
+      ["2018-01-07", 4, 0],
+      ["2018-08-05", 4, 0],
+      ["2019-01-06", 4, 0],
+      ["2019-08-04", 4, 0],
+      ["2020-01-05", 4, 0],
+    ]);
+    const r = rate(list);
+    const worst = wilson(0, 5);
+    expect(r).toMatchObject({ k: 0, n: 20, p: 0 });
+    expect(r.nEff).toBeCloseTo(5, 10);
+    expect(r.lo).toBe(0);
+    expect(r.hi).toBeCloseTo(worst.hi, 10);
+    expect(r.hi).toBeGreaterThan(0.4);
+    expect(r.hi).toBeGreaterThan(wilson(0, 20).hi * 2);
+  });
+
+  it("gives effective n 1 when every episode starts in one half-year", () => {
+    const zero = rate(items([["2018-01-07", 20, 0]]));
+    expect(zero.nEff).toBeCloseTo(1, 10);
+    expect(zero.hi).toBeCloseTo(wilson(0, 1).hi, 10);
+    // Mixed outcomes in a single cluster are also unmeasurable.
+    const mixed = rate(items([["2018-01-07", 20, 6]]));
+    expect(mixed.nEff).toBeCloseTo(1, 10);
+    expect(mixed.p).toBeCloseTo(0.3, 10);
+  });
+
+  it("uses Kish's effective number of clusters for uneven half-years", () => {
+    // 16 + 4 episodes, none hit: n^2 / sum(n_c^2) = 400 / 272.
+    const r = rate(
+      items([
+        ["2018-01-07", 16, 0],
+        ["2019-01-06", 4, 0],
+      ]),
+    );
+    expect(r.nEff).toBeCloseTo(400 / 272, 10);
+  });
+
+  it("leaves the measurable case unchanged", () => {
+    // Same data as the "widens the range" case: formula is the old robust one.
+    const list = items([
+      ["2018-01-07", 10, 8],
+      ["2018-08-05", 10, 0],
+      ["2019-02-03", 10, 0],
+      ["2019-08-04", 10, 0],
+    ]);
+    const p = 8 / 40;
+    const squares = (8 - p * 10) ** 2 + 3 * (0 - p * 10) ** 2;
+    const robust = ((4 / 3) * squares) / 1600;
+    const expected = 40 / Math.max(1, robust / ((p * (1 - p)) / 40));
+    expect(rate(list).nEff).toBeCloseTo(expected, 10);
   });
 
   it("handles an empty list", () => {

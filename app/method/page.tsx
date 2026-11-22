@@ -34,6 +34,14 @@ const VERDICT_LABEL: Record<string, string> = {
   not_enough_history: "Not enough history (no verdict)",
 };
 
+/** Short column names for the rank-group verdict table. */
+const BAND_VERDICTS = ["rotate", "no_clear_edge", "hold"] as const;
+const SHORT_VERDICT: Record<(typeof BAND_VERDICTS)[number], string> = {
+  rotate: "Rotate",
+  no_clear_edge: "No clear edge",
+  hold: "Hold",
+};
+
 /** "History favors rotating to BTC" -> "history favors rotating to BTC". */
 function lowerFirst(text: string) {
   return text.charAt(0).toLowerCase() + text.slice(1);
@@ -338,18 +346,21 @@ async function CalibrationSection() {
   const rotate = calibration.verdicts.rotate ?? { n: 0, beat: 0 };
   const unclear = calibration.verdicts.no_clear_edge ?? { n: 0, beat: 0 };
   const widened = detail ? detail.steps.slice(1).reduce((a, b) => a + b, 0) : 0;
+  const worseBands = (detail?.byBand ?? []).filter(
+    (b) => b.predicted > 0 && b.gain < 0,
+  );
   const refusals = calibration.verdicts.not_enough_history?.n ?? 0;
   const biggest = [...calibration.reliability].sort((a, b) => b.n - a.n)[0];
 
   return (
     <div className="space-y-6">
       <p>
-        Every quarter from January 2018, for every coin ranked 20 to 500, we
-        asked the tool for its answer using{" "}
-        <b>only episodes whose two years had already ended</b>, then checked
-        what happened next. {count(calibration.tested)} coin-dates were tested;
-        it gave a share for {count(calibration.predicted)} and refused{" "}
-        {count(refusals)} for too little history.
+        Every quarter from January 2018, for every coin ranked 2 to 1,000 (the
+        ranks the coin pages cover; rank 1 is BTC itself), we asked the tool for
+        its answer using <b>only episodes whose two years had already ended</b>,
+        then checked what happened next. {count(calibration.tested)} coin-dates
+        were tested; it gave a share for {count(calibration.predicted)} and
+        refused {count(refusals)} for too little history.
       </p>
 
       <div className="grid gap-8 md:grid-cols-[1fr_auto]">
@@ -469,6 +480,115 @@ async function CalibrationSection() {
         </div>
       )}
 
+      {detail?.byBand && detail.byBand.length > 0 && (
+        <div className="space-y-4">
+          <p>
+            <b>By rank.</b> The test covers adjusted ranks 2 to 1,000, so every
+            coin the site gives a verdict for is in it. Here it is split into
+            three groups of ranks. Each group is scored against its own base
+            rate, the share of earlier coins in that group that beat BTC.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[420px] border-collapse text-[15px]">
+              <caption className="text-muted mb-2 text-left text-sm">
+                Score by rank group
+              </caption>
+              <thead>
+                <tr className="text-muted text-left text-xs">
+                  <th className="border-ink border-b py-2 font-medium">
+                    Ranks
+                  </th>
+                  <th className="border-ink border-b py-2 text-right font-medium">
+                    Tested
+                  </th>
+                  <th className="border-ink border-b py-2 text-right font-medium">
+                    Got a share
+                  </th>
+                  <th className="border-ink border-b py-2 text-right font-medium">
+                    Brier
+                  </th>
+                  <th className="border-ink border-b py-2 text-right font-medium">
+                    Base rate
+                  </th>
+                  <th className="border-ink border-b py-2 text-right font-medium">
+                    Gain
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {detail.byBand.map((row) => (
+                  <tr key={row.band}>
+                    <td className="num border-rule border-b py-2.5">
+                      {row.min} to {count(row.max)}
+                    </td>
+                    <td className="num border-rule border-b py-2.5 text-right">
+                      {count(row.tested)}
+                    </td>
+                    <td className="num border-rule border-b py-2.5 text-right">
+                      {count(row.predicted)}
+                    </td>
+                    <td className="num border-rule border-b py-2.5 text-right">
+                      {row.predicted ? row.brier.toFixed(4) : "none"}
+                    </td>
+                    <td className="num border-rule border-b py-2.5 text-right">
+                      {row.predicted ? row.brierBaseline.toFixed(4) : "none"}
+                    </td>
+                    <td className="num border-rule border-b py-2.5 text-right">
+                      {row.predicted ? signedPct(row.gain, 1) : "none"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[420px] border-collapse text-[15px]">
+              <caption className="text-muted mb-2 text-left text-sm">
+                Verdicts given by rank group, and how many of those coins then
+                beat BTC
+              </caption>
+              <thead>
+                <tr className="text-muted text-left text-xs">
+                  <th className="border-ink border-b py-2 font-medium">
+                    Ranks
+                  </th>
+                  {BAND_VERDICTS.map((key) => (
+                    <th
+                      key={key}
+                      className="border-ink border-b py-2 text-right font-medium"
+                    >
+                      {SHORT_VERDICT[key]}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {detail.byBand.map((row) => (
+                  <tr key={row.band}>
+                    <td className="num border-rule border-b py-2.5">
+                      {row.min} to {count(row.max)}
+                    </td>
+                    {BAND_VERDICTS.map((key) => {
+                      const v = row.verdicts[key] ?? { n: 0, beat: 0 };
+                      return (
+                        <td
+                          key={key}
+                          className="num border-rule border-b py-2.5 text-right"
+                        >
+                          {v.n
+                            ? `${count(v.n)}, ${count(v.beat)} beat BTC (${pct(v.beat / v.n)})`
+                            : "never given"}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {example && (
         <p className="border-accent border-l-2 pl-5">
           <b>One plain example.</b> On {longDate(example.testDate)}, using only
@@ -504,6 +624,8 @@ async function CalibrationSection() {
         , likely because the earlier cycles, with the 2017 boom, were kinder to
         altcoins than 2018 to 2024. We kept the thresholds as they were set
         before the test.
+        {worseBands.length > 0 &&
+          ` By rank, the tool did worse than the plain base rate for ranks ${worseBands.map((b) => `${b.min} to ${count(b.max)} (${signedPct(b.gain, 1)})`).join(" and ")}, so treat its verdicts there with extra care.`}
         {widened > 0 &&
           ` The test uses the same widening steps as the coin pages; ${count(widened)} of the ${count(calibration.predicted)} predictions needed one.`}
       </p>

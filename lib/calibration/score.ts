@@ -23,6 +23,87 @@ export interface YearScore {
   gain: number;
 }
 
+/** Adjusted ranks the walk-forward test covers. Rank 1 is BTC, the benchmark. */
+export const RANK_MIN = 2;
+export const RANK_MAX = 1000;
+
+/** Rank bands for the breakdown. Together they cover RANK_MIN to RANK_MAX. */
+export const RANK_BANDS = [
+  { label: "2-19", min: 2, max: 19 },
+  { label: "20-500", min: 20, max: 500 },
+  { label: "501-1000", min: 501, max: 1000 },
+] as const;
+
+/** Index into RANK_BANDS for an adjusted rank, or -1 when it is outside the test. */
+export function bandIndex(rankAdj: number): number {
+  return RANK_BANDS.findIndex((b) => rankAdj >= b.min && rankAdj <= b.max);
+}
+
+/** How many times a verdict was given and how many of those coins then beat BTC. */
+export interface VerdictCount {
+  n: number;
+  beat: number;
+}
+
+/** Results for one rank band. */
+export interface BandScore {
+  /** For example "20-500". */
+  band: string;
+  min: number;
+  max: number;
+  /** Coin-dates tested in this band. */
+  tested: number;
+  /** Coin-dates that got a prediction. */
+  predicted: number;
+  /** Mean squared error of the tool's predictions. */
+  brier: number;
+  /** Mean squared error of this band's own base rate known at each date. */
+  brierBaseline: number;
+  /** 1 - brier / brierBaseline. */
+  gain: number;
+  verdicts: Record<string, VerdictCount>;
+}
+
+/** Running sums for one rank band while the test loops over dates. */
+export interface BandSums {
+  tested: number;
+  predicted: number;
+  brier: number;
+  base: number;
+  verdicts: Record<string, VerdictCount>;
+}
+
+export function emptyBandSums(verdictKeys: readonly string[]): BandSums {
+  return {
+    tested: 0,
+    predicted: 0,
+    brier: 0,
+    base: 0,
+    verdicts: Object.fromEntries(
+      verdictKeys.map((k) => [k, { n: 0, beat: 0 }]),
+    ),
+  };
+}
+
+/** Turn running sums into the per-band result stored with the calibration. */
+export function toBandScore(
+  band: { label: string; min: number; max: number },
+  sums: BandSums,
+): BandScore {
+  const { predicted } = sums;
+  return {
+    band: band.label,
+    min: band.min,
+    max: band.max,
+    tested: sums.tested,
+    predicted,
+    brier: predicted ? sums.brier / predicted : 0,
+    brierBaseline: predicted ? sums.base / predicted : 0,
+    gain: sums.base === 0 ? 0 : 1 - sums.brier / sums.base,
+    verdicts: sums.verdicts,
+  };
+}
+
 /** Share by which the tool's Brier score is below the baseline's. */
 export function brierGain(scores: readonly DateScore[]): number {
   const brier = scores.reduce((sum, s) => sum + s.brier, 0);

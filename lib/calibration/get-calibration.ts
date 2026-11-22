@@ -6,7 +6,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { db } from "@/lib/db/client";
 import { calibrationPoints, calibrationSummary } from "@/lib/db/schema";
 
-import type { YearScore } from "./score";
+import type { BandScore, YearScore } from "./score";
 
 export interface ReliabilityRow {
   bucket: string;
@@ -35,6 +35,11 @@ export interface CalibrationDetail {
   byYear: YearScore[];
   /** Predictions per widening step; index 0 is the standard match. */
   steps: number[];
+  /**
+   * Results per rank band. Missing in results saved before the third
+   * calibration run (which only covered adjusted ranks 20 to 500).
+   */
+  byBand?: BandScore[];
 }
 
 /** Walk-forward results written by scripts/calibrate.ts. Null until it has run. */

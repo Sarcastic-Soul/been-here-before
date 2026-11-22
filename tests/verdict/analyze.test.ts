@@ -46,8 +46,11 @@ describe("analyze", () => {
   });
 
   it("says rotate when almost nobody beat BTC", () => {
+    // Spread over four half-years: when every episode starts in the same
+    // half-year the range is (rightly) widened to the worst case.
+    const weeks = ["2018-01-07", "2018-08-05", "2019-01-06", "2019-08-04"];
     const rows = Array.from({ length: 40 }, (_, i) =>
-      row(i + 1, "2018-01-07", { beatBtc104w: i === 0 }),
+      row(i + 1, weeks[i % weeks.length], { beatBtc104w: i === 0 }),
     );
     const result = analyze(target, 999, rows, btc, new Map());
     expect(result.summary.n).toBe(40);

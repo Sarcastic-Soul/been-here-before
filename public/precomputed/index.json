@@ -1,5 +1,5 @@
 {
-  "savedAt": "2026-11-22T15:48:09.424Z",
+  "savedAt": "2026-11-22T17:26:33.948Z",
   "note": "Derived statistics from weekly CoinMarketCap snapshots, saved by scripts/precompute.ts as a fallback. Data provided by CoinMarketCap.com. Not financial advice.",
   "coins": [
     {

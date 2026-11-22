@@ -4,9 +4,11 @@
  * writes data/calibration.json and the calibration tables. No CMC calls.
  *
  * At each test date T (first Sunday of each quarter, 2018 to the last date
- * with 104 weeks of future), every coin ranked 20 to 500 gets a prediction
- * from episodes whose outcome window had closed by T. The prediction is then
- * compared with what the coin actually did over the next 104 weeks.
+ * with 104 weeks of future), every coin with adjusted rank 2 to 1,000 (the
+ * ranks the app serves; rank 1 is BTC) gets a prediction from episodes whose
+ * outcome window had closed by T. The prediction is then compared with what
+ * the coin actually did over the next 104 weeks. Results are also split by
+ * rank band (2-19, 20-500, 501-1000).
  */
 import { join } from "node:path";
 
@@ -27,9 +29,15 @@ import {
   type VerdictKind,
 } from "@/lib/engine/verdict";
 import {
+  RANK_BANDS,
+  RANK_MAX,
+  RANK_MIN,
+  bandIndex,
   brierGain,
   byYear,
+  emptyBandSums,
   gainInterval,
+  toBandScore,
   type DateScore,
 } from "@/lib/calibration/score";
 import { addWeeks, HORIZON_WEEKS } from "@/lib/verdict/analyze";
@@ -38,8 +46,6 @@ import { DATA_DIR, readJsonGz, writeJson } from "./lib/raw-store";
 
 const PANEL_DIR = join(DATA_DIR, "panel");
 const FIRST_TEST = "2018-01-01";
-const RANK_MIN = 20;
-const RANK_MAX = 500;
 /** 104 weeks plus the 2-week tolerance at the end of an outcome window. */
 const CLOSED_AFTER_WEEKS = HORIZON_WEEKS + 2;
 const EXAMPLE_DATE = "2022-01-02";
@@ -113,15 +119,23 @@ async function main() {
     `${testDates.length} test dates, ${testDates[0]} to ${testDates[testDates.length - 1]}`,
   );
 
-  // Base rate known at T: share of closed rank 20-500 rows that beat BTC.
-  const baseByWeek = new Map<string, { k: number; n: number }>();
+  // Base rate known at T: share of closed rows (adjusted rank 2 to 1,000)
+  // that beat BTC, overall and inside each rank band. Index 0 is the overall
+  // count, index 1 + i is RANK_BANDS[i].
+  const slots = RANK_BANDS.length + 1;
+  const baseByWeek = new Map<string, { k: number[]; n: number[] }>();
   for (const week of weeks) {
-    let k = 0;
-    let n = 0;
+    const k = new Array<number>(slots).fill(0);
+    const n = new Array<number>(slots).fill(0);
     for (const row of atWeek.get(week)!) {
-      if (row.rankAdj < RANK_MIN || row.rankAdj > RANK_MAX) continue;
-      n++;
-      if (row.beat) k++;
+      const bi = row.rankAdj < RANK_MIN ? -1 : bandIndex(row.rankAdj);
+      if (bi < 0) continue;
+      n[0]++;
+      n[1 + bi]++;
+      if (row.beat) {
+        k[0]++;
+        k[1 + bi]++;
+      }
     }
     baseByWeek.set(week, { k, n });
   }
@@ -139,6 +153,7 @@ async function main() {
     hold: { n: 0, beat: 0 },
     no_clear_edge: { n: 0, beat: 0 },
   };
+  const bandSums = RANK_BANDS.map(() => emptyBandSums(Object.keys(verdicts)));
   /** Predictions that needed step i of BAND_STEPS (index 0 unused). */
   const widened = BAND_STEPS.map(() => 0);
   let brier = 0;
@@ -150,21 +165,29 @@ async function main() {
 
   for (const test of testDates) {
     const cutoff = addWeeks(test, -CLOSED_AFTER_WEEKS);
-    let baseK = 0;
-    let baseN = 0;
+    const baseK = new Array<number>(slots).fill(0);
+    const baseN = new Array<number>(slots).fill(0);
     for (const [week, counts] of baseByWeek) {
       if (week > cutoff) continue;
-      baseK += counts.k;
-      baseN += counts.n;
+      for (let i = 0; i < slots; i++) {
+        baseK[i] += counts.k[i];
+        baseN[i] += counts.n[i];
+      }
     }
-    if (baseN === 0) continue;
-    const base = baseK / baseN;
+    if (baseN[0] === 0) continue;
+    const base = baseK[0] / baseN[0];
     const buckets = new Map<number, { p: number; y: number; n: number }>();
     const day: DateScore = { testDate: test, n: 0, brier: 0, base: 0 };
 
     for (const target of atWeek.get(test) ?? []) {
       if (target.rankAdj < RANK_MIN || target.rankAdj > RANK_MAX) continue;
+      const bi = bandIndex(target.rankAdj);
+      const sums = bandSums[bi];
+      // This band's own base rate known at T (falls back to the overall one
+      // in the unlikely case the band has no closed rows yet).
+      const bandBase = baseN[1 + bi] ? baseK[1 + bi] / baseN[1 + bi] : base;
       tested++;
+      sums.tested++;
       // Same widening as the app: standard bands, then wider fixed steps
       // while n is under the minimum.
       let episodes: ReturnType<typeof selectEpisodes<Row>> = [];
@@ -202,6 +225,8 @@ async function main() {
       const verdict = decide(summary);
       verdicts[verdict].n++;
       if (target.beat) verdicts[verdict].beat++;
+      sums.verdicts[verdict].n++;
+      if (target.beat) sums.verdicts[verdict].beat++;
       if (verdict === "not_enough_history") continue;
 
       const p = summary.beatBtc.p;
@@ -209,6 +234,9 @@ async function main() {
       brier += (p - y) ** 2;
       brierBase += (base - y) ** 2;
       predicted++;
+      sums.predicted++;
+      sums.brier += (p - y) ** 2;
+      sums.base += (bandBase - y) ** 2;
       day.n++;
       day.brier += (p - y) ** 2;
       day.base += (base - y) ** 2;
@@ -255,6 +283,8 @@ async function main() {
     gain: brierGain(dateScores),
     gainInterval: gainInterval(dateScores),
     byYear: byYear(dateScores),
+    /** Same scores split by adjusted-rank band, each against its own base rate. */
+    byBand: RANK_BANDS.map((band, i) => toBandScore(band, bandSums[i])),
     /** Predictions per BAND_STEPS entry; index 0 is the standard match. */
     steps: BAND_STEPS.map((_, i) =>
       i === 0
@@ -278,6 +308,14 @@ async function main() {
   console.log(
     `Brier gain ${(detail.gain * 100).toFixed(1)}%, 95% block-bootstrap range ${(detail.gainInterval.lo * 100).toFixed(1)}% to ${(detail.gainInterval.hi * 100).toFixed(1)}%`,
   );
+  for (const band of detail.byBand)
+    console.log(
+      `band ${band.band}: tested ${band.tested} predicted ${band.predicted} brier ${band.brier.toFixed(4)} baseline ${band.brierBaseline.toFixed(4)} gain ${(band.gain * 100).toFixed(1)}% verdicts ${Object.entries(
+        band.verdicts,
+      )
+        .map(([k, v]) => `${k} ${v.n} (beat ${v.beat})`)
+        .join(", ")}`,
+    );
   for (const year of detail.byYear)
     console.log(
       `${year.year} n ${year.n} brier ${year.brier.toFixed(4)} baseline ${year.brierBaseline.toFixed(4)} gain ${(year.gain * 100).toFixed(1)}%`,

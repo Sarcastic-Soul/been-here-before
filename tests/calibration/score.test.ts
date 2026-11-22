@@ -5,6 +5,10 @@ import {
   byYear,
   gainInterval,
   mulberry32,
+  RANK_BANDS,
+  bandIndex,
+  emptyBandSums,
+  toBandScore,
   type DateScore,
 } from "@/lib/calibration/score";
 
@@ -85,5 +89,45 @@ describe("mulberry32", () => {
       expect(x).toBeLessThan(1);
       expect(b()).toBe(x);
     }
+  });
+});
+
+describe("rank bands", () => {
+  it("cover adjusted ranks 2 to 1000 with no gap", () => {
+    expect(bandIndex(1)).toBe(-1);
+    expect(bandIndex(2)).toBe(0);
+    expect(bandIndex(19)).toBe(0);
+    expect(bandIndex(20)).toBe(1);
+    expect(bandIndex(500)).toBe(1);
+    expect(bandIndex(501)).toBe(2);
+    expect(bandIndex(1000)).toBe(2);
+    expect(bandIndex(1001)).toBe(-1);
+    expect(RANK_BANDS[0].min).toBe(2);
+    expect(RANK_BANDS[RANK_BANDS.length - 1].max).toBe(1000);
+  });
+
+  it("turns running sums into a band score", () => {
+    const sums = emptyBandSums(["rotate", "hold"]);
+    sums.tested = 12;
+    sums.predicted = 10;
+    sums.brier = 1;
+    sums.base = 2;
+    sums.verdicts.rotate = { n: 10, beat: 1 };
+    expect(toBandScore(RANK_BANDS[1], sums)).toEqual({
+      band: "20-500",
+      min: 20,
+      max: 500,
+      tested: 12,
+      predicted: 10,
+      brier: 0.1,
+      brierBaseline: 0.2,
+      gain: 0.5,
+      verdicts: { rotate: { n: 10, beat: 1 }, hold: { n: 0, beat: 0 } },
+    });
+  });
+
+  it("does not divide by zero for an empty band", () => {
+    const empty = toBandScore(RANK_BANDS[0], emptyBandSums(["rotate"]));
+    expect(empty).toMatchObject({ predicted: 0, brier: 0, gain: 0 });
   });
 });

@@ -3,10 +3,24 @@ import { describe, expect, it } from "vitest";
 import { median, wilson } from "@/lib/engine/stats";
 import { decide, summarize, type EpisodeOutcome } from "@/lib/engine/verdict";
 
+/** One start week in each of five different half-years. */
+const SPREAD_WEEKS = [
+  "2018-01-07",
+  "2018-08-05",
+  "2019-01-06",
+  "2019-08-04",
+  "2020-01-05",
+];
+
+/**
+ * Episodes spread evenly over five half-years, so the plain-rate cases are not
+ * mistaken for a single bunched market. Wins are the first `wins` episodes,
+ * which also spreads them evenly.
+ */
 function episodes(n: number, wins: number): EpisodeOutcome[] {
   return Array.from({ length: n }, (_, i) => ({
     lineageId: i,
-    week: "2018-01-07",
+    week: SPREAD_WEEKS[i % SPREAD_WEEKS.length],
     cycle: "2016-20",
     beatBtc: i < wins,
     fellOut: false,
