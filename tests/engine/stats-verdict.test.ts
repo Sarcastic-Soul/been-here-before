@@ -1,0 +1,57 @@
+import { describe, expect, it } from "vitest";
+
+import { median, wilson } from "@/lib/engine/stats";
+import { decide, summarize, type EpisodeOutcome } from "@/lib/engine/verdict";
+
+function episodes(n: number, wins: number): EpisodeOutcome[] {
+  return Array.from({ length: n }, (_, i) => ({
+    lineageId: i,
+    cycle: "2016-20",
+    beatBtc: i < wins,
+    fellOut: false,
+    reachedTop20: false,
+    coinReturn: i < wins ? 1 : -0.5,
+    btcReturn: 0.2,
+  }));
+}
+
+describe("wilson", () => {
+  it("matches known values", () => {
+    const half = wilson(5, 10);
+    expect(half.lo).toBeCloseTo(0.2366, 3);
+    expect(half.hi).toBeCloseTo(0.7634, 3);
+    expect(wilson(0, 20).lo).toBe(0);
+    expect(wilson(0, 20).hi).toBeCloseTo(0.1611, 3);
+    expect(wilson(20, 20).lo).toBeCloseTo(0.8389, 3);
+  });
+
+  it("returns the widest interval for n = 0", () => {
+    expect(wilson(0, 0)).toMatchObject({ lo: 0, hi: 1 });
+  });
+});
+
+describe("median", () => {
+  it("handles odd, even and empty lists", () => {
+    expect(median([3, 1, 2])).toBe(2);
+    expect(median([4, 1, 2, 3])).toBe(2.5);
+    expect(median([])).toBeNull();
+  });
+});
+
+describe("decide", () => {
+  it("refuses a verdict below 20 episodes", () => {
+    expect(decide(summarize(episodes(19, 0)))).toBe("not_enough_history");
+  });
+
+  it("favors rotating when even the upper bound is under 35%", () => {
+    expect(decide(summarize(episodes(100, 20)))).toBe("rotate");
+  });
+
+  it("favors holding when the lower bound is over 50%", () => {
+    expect(decide(summarize(episodes(100, 70)))).toBe("hold");
+  });
+
+  it("says no clear edge in between", () => {
+    expect(decide(summarize(episodes(40, 16)))).toBe("no_clear_edge");
+  });
+});

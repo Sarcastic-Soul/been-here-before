@@ -4,6 +4,7 @@ import { gunzipSync, gzipSync } from "node:zlib";
 
 /** Local, gitignored store for raw CMC responses. Never committed. */
 export const DATA_DIR = join(process.cwd(), "data");
+export const LISTINGS_DIR = join(DATA_DIR, "raw", "listings");
 
 export async function exists(path: string): Promise<boolean> {
   try {

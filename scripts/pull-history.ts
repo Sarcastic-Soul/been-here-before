@@ -12,9 +12,8 @@ import { parseArgs } from "node:util";
 import { cmcGet, CmcError } from "@/lib/cmc/client";
 
 import { formatDay, sundayOnOrBefore, sundaysBetween } from "./lib/dates";
-import { DATA_DIR, exists, writeJsonGz } from "./lib/raw-store";
+import { DATA_DIR, exists, LISTINGS_DIR, writeJsonGz } from "./lib/raw-store";
 
-export const LISTINGS_DIR = join(DATA_DIR, "raw", "listings");
 const LOG_PATH = join(DATA_DIR, "raw", "pull-log.jsonl");
 const FIRST_SNAPSHOT = "2013-04-28";
 const LIMIT = 5000;
