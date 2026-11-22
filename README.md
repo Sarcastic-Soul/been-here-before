@@ -4,7 +4,7 @@ Type a coin. See every past coin that stood in the same spot, and how it ended u
 
 [![CI](https://github.com/Sarcastic-Soul/been-here-before/actions/workflows/ci.yml/badge.svg)](https://github.com/Sarcastic-Soul/been-here-before/actions/workflows/ci.yml)
 
-**Live:** https://been-here-before.vercel.app · **Track:** Data and Visualisation · Built for the Build with CMC API Hackathon, Round 2 (DoraHacks)
+**Live:** https://been-here-before.vercel.app · **Demo video:** https://youtu.be/rO22CuzqARI · **Track:** Data and Visualisation · Built for the Build with CMC API Hackathon, Round 2 (DoraHacks)
 
 ![Filecoin: most coins in this spot lost to BTC. 8 of 85 past episodes beat holding BTC over the next 2 years](.github/assets/verdict.png)
 
@@ -13,7 +13,7 @@ Type a coin. See every past coin that stood in the same spot, and how it ended u
 | Required item                                          | Where                                                                                                              |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
 | 1. Public GitHub repository                            | This repository                                                                                                    |
-| 2. Working demo                                        | https://been-here-before.vercel.app (demo video linked from the BUIDL page)                                        |
+| 2. Working demo                                        | https://been-here-before.vercel.app and the 2-minute demo video https://youtu.be/rO22CuzqARI                       |
 | 3. X post with #BuildwithCMC                           | Linked from the BUIDL page                                                                                         |
 | 4. CMC API endpoints used, named                       | [CoinMarketCap endpoints used](#coinmarketcap-endpoints-used)                                                      |
 | 5. Evidence of a real API call: code and response      | [Evidence of a real API call](#evidence-of-a-real-api-call), and the **Receipts** drawer on every coin page        |
