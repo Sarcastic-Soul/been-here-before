@@ -260,7 +260,13 @@ export function TwinChart({
             height={plotH}
             fill="transparent"
             tabIndex={0}
-            aria-label="Move along the chart with the arrow keys"
+            role="slider"
+            aria-label="Weeks after the start. Move along the chart with the arrow keys"
+            aria-orientation="horizontal"
+            aria-valuemin={0}
+            aria-valuemax={HORIZON}
+            aria-valuenow={hoverT ?? 0}
+            aria-valuetext={`Week ${hoverT ?? 0}`}
             onPointerMove={(event) =>
               moveTo(event.clientX, event.currentTarget)
             }

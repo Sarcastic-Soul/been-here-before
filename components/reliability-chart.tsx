@@ -153,6 +153,7 @@ export function ReliabilityChart({ points }: { points: ReliabilityPoint[] }) {
                   r={16}
                   fill="transparent"
                   tabIndex={0}
+                  role="img"
                   aria-label={`Predicted ${pct(p.predicted)}, actual ${pct(p.realized)}, ${count(p.n)} coin-dates`}
                   onPointerEnter={() => setActive(p.bucket)}
                   onPointerLeave={() => setActive(null)}
