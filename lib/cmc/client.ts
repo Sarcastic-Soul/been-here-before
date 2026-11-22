@@ -59,7 +59,8 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * GET a CMC Pro API endpoint. The key goes in a header only, so the URL in the
- * receipt is safe to show. Retries 429 and 5xx with backoff.
+ * receipt is safe to show. Retries network errors, unreadable bodies, 429 and
+ * 5xx with backoff.
  */
 export async function cmcGet<T = unknown>(
   endpoint: string,
@@ -69,10 +70,19 @@ export async function cmcGet<T = unknown>(
   const requestUrl = buildUrl(endpoint, params);
 
   for (let attempt = 0; ; attempt++) {
-    const response = await fetch(requestUrl, {
-      headers: { Accept: "application/json", "X-CMC_PRO_API_KEY": apiKey() },
-      cache: "no-store",
-    });
+    let response: Response;
+    try {
+      response = await fetch(requestUrl, {
+        headers: { Accept: "application/json", "X-CMC_PRO_API_KEY": apiKey() },
+        cache: "no-store",
+      });
+    } catch (error) {
+      if (attempt < MAX_RETRIES) {
+        await sleep(2 ** attempt * 2000);
+        continue;
+      }
+      throw error;
+    }
     const body = (await response.json().catch(() => null)) as {
       status?: CmcStatus;
       data?: unknown;
@@ -93,13 +103,17 @@ export async function cmcGet<T = unknown>(
       errorMessage: status.error_message ?? null,
     };
 
-    const retryable = response.status === 429 || response.status >= 500;
+    // A 200 with a body that is not JSON or has no data is a cut-off response.
+    const incomplete =
+      response.ok && (body === null || body.data === undefined);
+    const retryable =
+      incomplete || response.status === 429 || response.status >= 500;
     if (retryable && attempt < MAX_RETRIES) {
       await sleep(2 ** attempt * 2000);
       continue;
     }
 
-    if (!response.ok || (errorCode !== null && errorCode !== 0)) {
+    if (incomplete || !response.ok || (errorCode !== null && errorCode !== 0)) {
       throw new CmcError(
         `CMC ${endpoint} failed: HTTP ${response.status}, code ${errorCode}, ${receipt.errorMessage ?? "no message"}`,
         receipt,

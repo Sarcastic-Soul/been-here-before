@@ -34,6 +34,7 @@ async function pullWeek(
       aux: AUX,
     },
   );
+  if (!Array.isArray(data)) throw new Error(`No rows in snapshot ${date}`);
   await writeJsonGz(join(LISTINGS_DIR, `${date}.json.gz`), body);
   const credits = receipt.creditCount ?? 0;
   await appendFile(
