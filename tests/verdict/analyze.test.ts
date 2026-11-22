@@ -1,10 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import { addWeeks, analyze, queryBands, twinPath, type OutcomeRow } from "@/lib/verdict/analyze";
+import {
+  addWeeks,
+  analyze,
+  episodeCount,
+  queryBands,
+  twinPath,
+  type OutcomeRow,
+} from "@/lib/verdict/analyze";
 
 const target = { rankAdj: 100, drawdown: 0.8, ageWeeks: 300 };
 
-function row(lineageId: number, week: string, extra: Partial<OutcomeRow> = {}): OutcomeRow {
+function row(
+  lineageId: number,
+  week: string,
+  extra: Partial<OutcomeRow> = {},
+): OutcomeRow {
   return {
     lineageId,
     coinId: lineageId,
@@ -34,7 +45,9 @@ describe("analyze", () => {
   });
 
   it("says rotate when almost nobody beat BTC", () => {
-    const rows = Array.from({ length: 40 }, (_, i) => row(i + 1, "2018-01-07", { beatBtc104w: i === 0 }));
+    const rows = Array.from({ length: 40 }, (_, i) =>
+      row(i + 1, "2018-01-07", { beatBtc104w: i === 0 }),
+    );
     const result = analyze(target, 999, rows, btc, new Map());
     expect(result.summary.n).toBe(40);
     expect(result.summary.beatBtc.hi).toBeLessThan(0.35);
@@ -43,8 +56,12 @@ describe("analyze", () => {
 
   it("says hold when most beat BTC, and splits by cycle", () => {
     const rows = [
-      ...Array.from({ length: 30 }, (_, i) => row(i + 1, "2018-01-07", { beatBtc104w: i < 27 })),
-      ...Array.from({ length: 30 }, (_, i) => row(i + 1, "2021-06-06", { beatBtc104w: i < 25 })),
+      ...Array.from({ length: 30 }, (_, i) =>
+        row(i + 1, "2018-01-07", { beatBtc104w: i < 27 }),
+      ),
+      ...Array.from({ length: 30 }, (_, i) =>
+        row(i + 1, "2021-06-06", { beatBtc104w: i < 25 }),
+      ),
     ];
     const result = analyze(target, 999, rows, btc, new Map());
     expect(result.summary.n).toBe(60);
@@ -56,10 +73,56 @@ describe("analyze", () => {
     ]);
   });
 
+  it("reports the rate a survivors-only study would give", () => {
+    const rows = Array.from({ length: 30 }, (_, i) =>
+      row(i + 1, "2018-01-07", { beatBtc104w: i < 6 }),
+    );
+    // The 6 winners and 4 of the losers are still listed today.
+    const alive = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    const result = analyze(target, 999, rows, btc, new Map(), 0, [], alive);
+    expect(result.summary.beatBtc).toMatchObject({ k: 6, n: 30 });
+    expect(result.survivorsOnly).toMatchObject({ k: 6, n: 10, p: 0.6 });
+    expect(result.episodes.filter((e) => e.aliveToday)).toHaveLength(10);
+  });
+
   it("leaves out the coin's own lineage and rows outside the bands", () => {
-    const rows = [row(7, "2018-01-07"), row(8, "2018-01-07", { drawdown: 0.5 }), row(9, "2018-01-07")];
+    const rows = [
+      row(7, "2018-01-07"),
+      row(8, "2018-01-07", { drawdown: 0.5 }),
+      row(9, "2018-01-07"),
+    ];
     const result = analyze(target, 7, rows, btc, new Map());
     expect(result.episodes.map((e) => e.lineageId)).toEqual([9]);
+  });
+
+  it("uses a wider step's bands when told to, and labels the step", () => {
+    const rows = [
+      row(1, "2018-01-07"),
+      row(2, "2018-01-07", { rankAdj: 180, drawdown: 0.66 }),
+    ];
+    expect(episodeCount(rows, target, 999, 0)).toBe(1);
+    expect(episodeCount(rows, target, 999, 1)).toBe(2);
+    const result = analyze(target, 999, rows, btc, new Map(), 1, [1, 2]);
+    expect(result.summary.n).toBe(2);
+    expect(result.bands).toMatchObject({
+      step: 1,
+      rankFactor: 2,
+      drawdownBand: 0.15,
+      tried: [1, 2],
+    });
+    expect(result.bands.rankMax).toBe(200);
+  });
+
+  it("keeps median excess return free of unknown BTC returns", () => {
+    // Episode at the very end of the BTC series has no BTC end price.
+    const rows = Array.from({ length: 3 }, (_, i) => row(i + 1, "2013-04-28"));
+    rows.push(row(9, addWeeks("2013-04-28", 790)));
+    const result = analyze(target, 999, rows, btc, new Map());
+    const known = result.episodes.filter((e) => e.btcRet104w !== null);
+    expect(known).toHaveLength(3);
+    expect(result.summary.medianExcessReturn).toBeCloseTo(
+      -0.5 - (204 / 100 - 1),
+    );
   });
 
   it("computes the BTC return over the same 104 weeks", () => {

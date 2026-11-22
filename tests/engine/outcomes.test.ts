@@ -30,6 +30,15 @@ describe("computeOutcomes", () => {
     expect(computeOutcomes(points, btc, 19, 10)[0].fellOut).toBe(false);
   });
 
+  it("reads BTC at the same week as the coin when the end week is a gap", () => {
+    // Coin price found at week 12, not 10: BTC must be read at week 12 too.
+    const points = [point(0, 1), point(12, 2.15)];
+    const [first] = computeOutcomes(points, btc, 19, 10);
+    expect(first.btcReturn).toBeCloseTo(220 / 100 - 1);
+    // 2.15x beats BTC's 2.0x at week 10 but not its 2.2x at week 12.
+    expect(first.beatBtc).toBe(false);
+  });
+
   it("does not count a coin that fell out and came back by the end as fell out", () => {
     const points = [point(0, 1), point(9, 2), point(10, 2)];
     expect(computeOutcomes(points, btc, 19, 10)[0].fellOut).toBe(false);

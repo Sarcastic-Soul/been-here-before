@@ -39,10 +39,13 @@ export function drawdownPct(drawdown: number): string {
 }
 
 /** Signed return: 1.745 -> "+175%", -0.4 -> "−40%". */
-export function signedPct(ret: number): string {
-  const value = Math.round(ret * 100);
+export function signedPct(ret: number, digits = 0): string {
+  const value = Number((ret * 100).toFixed(digits));
   if (value === 0) return "0%";
-  return `${value > 0 ? "+" : "−"}${Math.abs(value).toLocaleString("en-US")}%`;
+  return `${value > 0 ? "+" : "−"}${Math.abs(value).toLocaleString("en-US", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })}%`;
 }
 
 /**

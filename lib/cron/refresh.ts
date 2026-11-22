@@ -117,9 +117,17 @@ export async function refreshCurrentState() {
     ...new Set(rows.map((row) => known.get(row.id)?.lineageId ?? row.id)),
   ];
   const anchors = new Map<number, Anchor>();
+  // lineage_peaks keeps peaks of coins that left today's listing; current_state
+  // covers the days before that table existed.
   const stateRows = (await sql.query(
     `SELECT DISTINCT ON (lineage_id) lineage_id, running_peak_usd, peak_at, born_at
-     FROM current_state WHERE lineage_id = ANY($1::int4[]) AND peak_at IS NOT NULL
+     FROM (
+       SELECT lineage_id, running_peak_usd, peak_at, born_at
+       FROM lineage_peaks WHERE lineage_id = ANY($1::int4[])
+       UNION ALL
+       SELECT lineage_id, running_peak_usd, peak_at, born_at
+       FROM current_state WHERE lineage_id = ANY($1::int4[]) AND peak_at IS NOT NULL
+     ) AS anchors
      ORDER BY lineage_id, running_peak_usd DESC`,
     [lineages],
   )) as {
@@ -187,6 +195,23 @@ export async function refreshCurrentState() {
         newCoins.map((c) => c.isToken),
         newCoins.map((c) => c.excludedReason),
         week,
+      ],
+    ),
+    sql.query(
+      `INSERT INTO lineage_peaks (lineage_id, running_peak_usd, peak_at, born_at, updated_at)
+       SELECT DISTINCT ON (lineage_id) lineage_id, running_peak_usd, peak_at, born_at, $5::timestamptz
+       FROM unnest($1::int4[], $2::float8[], $3::timestamptz[], $4::timestamptz[])
+         AS t(lineage_id, running_peak_usd, peak_at, born_at)
+       ORDER BY lineage_id, running_peak_usd DESC
+       ON CONFLICT (lineage_id) DO UPDATE SET running_peak_usd = excluded.running_peak_usd,
+         peak_at = excluded.peak_at, born_at = excluded.born_at, updated_at = excluded.updated_at
+       WHERE excluded.running_peak_usd >= lineage_peaks.running_peak_usd`,
+      [
+        states.map((s) => s.lineageId),
+        states.map((s) => s.runningPeakUsd),
+        states.map((s) => s.peakAt.toISOString()),
+        states.map((s) => s.bornAt.toISOString()),
+        asOf.toISOString(),
       ],
     ),
     sql.query("DELETE FROM current_state"),

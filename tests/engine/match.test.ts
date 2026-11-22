@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import { cycleOf, marketPhases } from "@/lib/engine/cycles";
-import { ageBucket, inBands, nearestTwins, selectEpisodes, type CandidateRow } from "@/lib/engine/match";
+import {
+  ageBucket,
+  BAND_STEPS,
+  inBands,
+  nearestTwins,
+  rankBand,
+  selectEpisodes,
+  type CandidateRow,
+} from "@/lib/engine/match";
 import { isExcludedAsset, looksPegged } from "@/lib/engine/universe";
 
 const target = { rankAdj: 100, drawdown: 0.8, ageWeeks: 150 };
@@ -19,6 +27,23 @@ describe("bands", () => {
     expect(ageBucket(51)).toBe(0);
     expect(ageBucket(52)).toBe(1);
     expect(ageBucket(1000)).toBe(3);
+  });
+});
+
+describe("widening steps", () => {
+  it("go wider in rank and drawdown in a fixed order, never in age", () => {
+    const factors = BAND_STEPS.map((step) => step.rankFactor);
+    const drawdowns = BAND_STEPS.map((step) => step.drawdownBand);
+    expect(factors).toEqual([...factors].sort((a, b) => a - b));
+    expect(drawdowns).toEqual([...drawdowns].sort((a, b) => a - b));
+    const wide = BAND_STEPS[BAND_STEPS.length - 1];
+    expect(inBands(target, row(1, "2019-01-06", { rankAdj: 151 }), wide)).toBe(true);
+    expect(inBands(target, row(1, "2019-01-06", { drawdown: 0.6 }), wide)).toBe(true);
+    expect(inBands(target, row(1, "2019-01-06", { ageWeeks: 210 }), wide)).toBe(false);
+  });
+
+  it("never reaches BTC's rank 1, even for rank 2", () => {
+    for (const step of BAND_STEPS) expect(rankBand(2, step).min).toBe(2);
   });
 });
 

@@ -5,7 +5,12 @@ import { Suspense } from "react";
 import { ReliabilityChart } from "@/components/reliability-chart";
 import { getCalibration } from "@/lib/calibration/get-calibration";
 import { CYCLES } from "@/lib/engine/cycles";
-import { AGE_BUCKETS, DRAWDOWN_BAND, RANK_FACTOR } from "@/lib/engine/match";
+import {
+  AGE_BUCKETS,
+  BAND_STEPS,
+  DRAWDOWN_BAND,
+  RANK_FACTOR,
+} from "@/lib/engine/match";
 import { HOLD_ABOVE, MIN_EPISODES, ROTATE_BELOW } from "@/lib/engine/verdict";
 import {
   count,
@@ -189,11 +194,25 @@ export default function MethodPage() {
               are not used: they are today’s labels, and old coins get tagged
               “AI” later.
             </p>
-            <p>
+            <p className="mb-3">
               A coin can sit in the same spot for months. To stop near-copies
               from inflating the count, each coin counts once per BTC halving
               cycle: the first week it entered the spot. Your own coin is never
-              its own twin.
+              its own twin, and BTC is never anyone’s twin: it is the benchmark.
+            </p>
+            <p>
+              Big coins have few past twins, because few coins ever sat near the
+              top. When the match above finds fewer than {MIN_EPISODES}{" "}
+              episodes, it widens in fixed steps, always in this order:{" "}
+              {BAND_STEPS.slice(1)
+                .map(
+                  (s) =>
+                    `rank ×${s.rankFactor} and ±${Math.round(s.drawdownBand * 100)} points`,
+                )
+                .join(", then ")}
+              . It stops at the first step that reaches {MIN_EPISODES}. The age
+              bucket never widens. The coin page says when a wider step was
+              used. If even the widest step falls short, there is no verdict.
             </p>
           </section>
 
@@ -217,6 +236,14 @@ export default function MethodPage() {
                 Rates come with <b>Wilson 95% ranges</b>, which behave well for
                 small counts and rates near 0 or 1. Returns use medians, because
                 crypto returns have huge tails.
+              </li>
+              <li>
+                Episodes that start in the same half-year share most of their
+                two years, so they tend to win or lose together. Ranges are
+                therefore computed at an <b>effective count</b>: the episode
+                count divided by how strongly results bunch by half-year (a
+                cluster-robust design effect, never below 1). The coin page
+                shows both counts. This makes ranges wider, never narrower.
               </li>
               <li>
                 Halving cycles used for the split:{" "}
@@ -307,6 +334,10 @@ async function CalibrationSection() {
     beatBtc: boolean;
   } | null;
   const gain = 1 - calibration.brier / calibration.brierBaseline;
+  const detail = calibration.detail;
+  const rotate = calibration.verdicts.rotate ?? { n: 0, beat: 0 };
+  const unclear = calibration.verdicts.no_clear_edge ?? { n: 0, beat: 0 };
+  const widened = detail ? detail.steps.slice(1).reduce((a, b) => a + b, 0) : 0;
   const refusals = calibration.verdicts.not_enough_history?.n ?? 0;
   const biggest = [...calibration.reliability].sort((a, b) => b.n - a.n)[0];
 
@@ -339,6 +370,12 @@ async function CalibrationSection() {
           <div>
             <dt className="label">Gain over the base rate</dt>
             <dd className="num text-ink mt-1 text-[28px]">{pct(gain, 1)}</dd>
+            {detail && (
+              <dd className="num text-muted mt-1 text-xs">
+                95% range {signedPct(detail.gainInterval.lo, 1)} to{" "}
+                {signedPct(detail.gainInterval.hi, 1)}
+              </dd>
+            )}
           </div>
         </dl>
       </div>
@@ -384,6 +421,54 @@ async function CalibrationSection() {
         </table>
       </div>
 
+      {detail && detail.byYear.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[320px] border-collapse text-[15px]">
+            <caption className="text-muted mb-2 text-left text-sm">
+              By year of the test date
+            </caption>
+            <thead>
+              <tr className="text-muted text-left text-xs">
+                <th className="border-ink border-b py-2 font-medium">Year</th>
+                <th className="border-ink border-b py-2 text-right font-medium">
+                  Predictions
+                </th>
+                <th className="border-ink border-b py-2 text-right font-medium">
+                  Brier
+                </th>
+                <th className="border-ink border-b py-2 text-right font-medium">
+                  Base rate
+                </th>
+                <th className="border-ink border-b py-2 text-right font-medium">
+                  Gain
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {detail.byYear.map((row) => (
+                <tr key={row.year}>
+                  <td className="num border-rule border-b py-2.5">
+                    {row.year}
+                  </td>
+                  <td className="num border-rule border-b py-2.5 text-right">
+                    {count(row.n)}
+                  </td>
+                  <td className="num border-rule border-b py-2.5 text-right">
+                    {row.brier.toFixed(4)}
+                  </td>
+                  <td className="num border-rule border-b py-2.5 text-right">
+                    {row.brierBaseline.toFixed(4)}
+                  </td>
+                  <td className="num border-rule border-b py-2.5 text-right">
+                    {signedPct(row.gain, 1)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {example && (
         <p className="border-accent border-l-2 pl-5">
           <b>One plain example.</b> On {longDate(example.testDate)}, using only
@@ -401,13 +486,26 @@ async function CalibrationSection() {
         <b>What this says, honestly.</b> When the tool said “rotate”, it was
         right most of the time, but most altcoins lagged BTC in these years
         anyway, so that is the easy call. The Brier score beats a plain base
-        rate by only {pct(gain, 1)}. The shares it gives run high
+        rate by only {pct(gain, 1)}
+        {detail &&
+          (detail.gainInterval.lo <= 0
+            ? `, and the 95% range (${signedPct(detail.gainInterval.lo, 1)} to ${signedPct(detail.gainInterval.hi, 1)}, resampling two-year blocks of test dates) includes zero, so even that small gain is not certain. Most of it comes from ${[...detail.byYear].sort((a, b) => b.gain - a.gain)[0]?.year}`
+            : `, with a 95% range of ${signedPct(detail.gainInterval.lo, 1)} to ${signedPct(detail.gainInterval.hi, 1)}`)}
+        . What the verdict does separate: coins it called “no clear edge” went
+        on to beat BTC{" "}
+        {rotate.n && unclear.n
+          ? `${pct(unclear.beat / unclear.n)} of the time, against ${pct(rotate.beat / rotate.n)} for “rotate”`
+          : "more often than coins it called “rotate”"}
+        . In practice the verdict has two states, “rotate” and “no clear edge”:
+        “hold” never fired. The shares it gives run high
         {biggest
           ? `: in its busiest bucket, predictions averaging ${pct(biggest.predicted)} came true ${pct(biggest.realized)} of the time`
           : ""}
         , likely because the earlier cycles, with the 2017 boom, were kinder to
-        altcoins than 2018 to 2024. “Hold” never fired. We kept the thresholds
-        as they were set before the test.
+        altcoins than 2018 to 2024. We kept the thresholds as they were set
+        before the test.
+        {widened > 0 &&
+          ` The test uses the same widening steps as the coin pages; ${count(widened)} of the ${count(calibration.predicted)} predictions needed one.`}
       </p>
     </div>
   );

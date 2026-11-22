@@ -32,6 +32,12 @@ export interface Bands {
   drawdownMin: number;
   drawdownMax: number;
   ageLabel: string;
+  /** Which BAND_STEPS entry was used: 0 is the standard match. Missing in old saved copies. */
+  step?: number;
+  rankFactor?: number;
+  drawdownBand?: number;
+  /** Episodes found at each step tried, in order. */
+  tried?: number[];
 }
 
 export interface EpisodeRow {
@@ -50,6 +56,8 @@ export interface EpisodeRow {
   beatBtc52w: boolean | null;
   fellOut104w: boolean;
   reachedTop20: boolean;
+  /** Its lineage is in the latest weekly top 5,000. Missing in old saved copies. */
+  aliveToday?: boolean;
 }
 
 export interface TwinPoint {
@@ -88,6 +96,12 @@ export interface VerdictOk {
   verdictText: string;
   summary: Summary;
   beatBtc1y: Rate;
+  /**
+   * The 2-year beat-BTC rate counting only episodes whose coin is still in the
+   * top 5,000 today: what a study that forgot dead coins would report.
+   * Missing in old saved copies.
+   */
+  survivorsOnly?: Rate;
   byCycle: CycleRow[];
   twins: Twin[];
   episodes: EpisodeRow[];
@@ -95,9 +109,13 @@ export interface VerdictOk {
 }
 
 export interface VerdictRefused {
-  status: "not_found" | "excluded" | "not_covered" | "benchmark";
+  status: "not_found" | "excluded" | "not_covered" | "benchmark" | "moved";
   coin: CoinInfo | null;
   message: string;
+  /** For "moved": the live coin to send the visitor to. */
+  movedTo?: { slug: string; name: string };
+  /** For a coin no longer in the snapshots: the last week it was seen. */
+  lastSeen?: string;
 }
 
 export type VerdictResponse = VerdictOk | VerdictRefused;

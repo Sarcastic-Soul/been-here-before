@@ -1,5 +1,5 @@
 import { CYCLES } from "./cycles";
-import { median, rateOf, type Rate } from "./stats";
+import { clusteredRate, halfYear, median, type Rate } from "./stats";
 import type { Cycle } from "./types";
 
 export const MIN_EPISODES = 20;
@@ -10,17 +10,23 @@ export const HOLD_ABOVE = 0.5;
 
 export interface EpisodeOutcome {
   lineageId: number;
+  /** Start week, used to group episodes that share a market. */
+  week: string;
   cycle: Cycle;
   beatBtc: boolean;
   fellOut: boolean;
   reachedTop20: boolean;
   coinReturn: number;
-  btcReturn: number;
+  /** Null when BTC's price at the start or end week is unknown. */
+  btcReturn: number | null;
 }
 
 export interface Summary {
   n: number;
   distinctCoins: number;
+  /** Calendar half-years the episodes start in. Missing in old saved copies. */
+  clusters?: number;
+  /** Ranges use an effective n that allows for episodes bunched in time. */
   beatBtc: Rate;
   reachedTop20: Rate;
   fellOut: Rate;
@@ -28,7 +34,8 @@ export interface Summary {
   medianExcessReturn: number | null;
 }
 
-export type VerdictKind = "not_enough_history" | "rotate" | "hold" | "no_clear_edge";
+export type VerdictKind =
+  "not_enough_history" | "rotate" | "hold" | "no_clear_edge";
 
 export const VERDICT_TEXT: Record<VerdictKind, string> = {
   not_enough_history: "Not enough history",
@@ -38,14 +45,21 @@ export const VERDICT_TEXT: Record<VerdictKind, string> = {
 };
 
 export function summarize(episodes: readonly EpisodeOutcome[]): Summary {
+  const rate = (hit: (e: EpisodeOutcome) => boolean) =>
+    clusteredRate(episodes, hit, (e) => halfYear(e.week));
   return {
     n: episodes.length,
     distinctCoins: new Set(episodes.map((e) => e.lineageId)).size,
-    beatBtc: rateOf(episodes, (e) => e.beatBtc),
-    reachedTop20: rateOf(episodes, (e) => e.reachedTop20),
-    fellOut: rateOf(episodes, (e) => e.fellOut),
+    clusters: new Set(episodes.map((e) => halfYear(e.week))).size,
+    beatBtc: rate((e) => e.beatBtc),
+    reachedTop20: rate((e) => e.reachedTop20),
+    fellOut: rate((e) => e.fellOut),
     medianCoinReturn: median(episodes.map((e) => e.coinReturn)),
-    medianExcessReturn: median(episodes.map((e) => e.coinReturn - e.btcReturn)),
+    medianExcessReturn: median(
+      episodes.flatMap((e) =>
+        e.btcReturn === null ? [] : [e.coinReturn - e.btcReturn],
+      ),
+    ),
   };
 }
 

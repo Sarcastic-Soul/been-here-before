@@ -10,7 +10,7 @@ import { db } from "@/lib/db/client";
 import { coins, currentState } from "@/lib/db/schema";
 import { getReceipt } from "@/lib/verdict/get-receipt";
 import { getPanelStats } from "@/lib/verdict/get-stats";
-import { getVerdict } from "@/lib/verdict/get-verdict";
+import { getSlugIndex, getVerdict } from "@/lib/verdict/get-verdict";
 
 /** How many of today's top coins (after removing stablecoins and wrappers) to warm. */
 export const PREWARM_TOP = 100;
@@ -61,7 +61,7 @@ export async function prewarm(): Promise<{
   ms: number;
 }> {
   const start = Date.now();
-  await Promise.all([getPanelStats(), getCalibration()]);
+  await Promise.all([getPanelStats(), getCalibration(), getSlugIndex()]);
   const slugs = await prewarmSlugs();
   const failed: string[] = [];
   let next = 0;

@@ -12,8 +12,26 @@ import { join } from "node:path";
 
 import { Pool } from "@neondatabase/serverless";
 
-import { inBands, rankBand, selectEpisodes, type CandidateRow } from "@/lib/engine/match";
-import { decide, summarize, type EpisodeOutcome, type VerdictKind } from "@/lib/engine/verdict";
+import {
+  BAND_STEPS,
+  inBands,
+  rankBand,
+  selectEpisodes,
+  type CandidateRow,
+} from "@/lib/engine/match";
+import {
+  MIN_EPISODES,
+  decide,
+  summarize,
+  type EpisodeOutcome,
+  type VerdictKind,
+} from "@/lib/engine/verdict";
+import {
+  brierGain,
+  byYear,
+  gainInterval,
+  type DateScore,
+} from "@/lib/calibration/score";
 import { addWeeks, HORIZON_WEEKS } from "@/lib/verdict/analyze";
 
 import { DATA_DIR, readJsonGz, writeJson } from "./lib/raw-store";
@@ -52,9 +70,13 @@ function quarterSundays(from: string, to: string): string[] {
 
 async function main() {
   const cw = await readJsonGz<Columns>(join(PANEL_DIR, "coin_weeks.json.gz"));
-  const coinsPanel = await readJsonGz<Columns>(join(PANEL_DIR, "coins.json.gz"));
+  const coinsPanel = await readJsonGz<Columns>(
+    join(PANEL_DIR, "coins.json.gz"),
+  );
   const names = new Map<number, string>();
-  coinsPanel.id.forEach((id, i) => names.set(id as number, `${coinsPanel.name[i]} (${coinsPanel.symbol[i]})`));
+  coinsPanel.id.forEach((id, i) =>
+    names.set(id as number, `${coinsPanel.name[i]} (${coinsPanel.symbol[i]})`),
+  );
 
   // Complete rows grouped by adjusted rank, each group sorted by week.
   const byRank = new Map<number, Row[]>();
@@ -81,12 +103,15 @@ async function main() {
     list.push(row);
     atWeek.set(row.week, list);
   }
-  for (const group of byRank.values()) group.sort((a, b) => a.week.localeCompare(b.week));
+  for (const group of byRank.values())
+    group.sort((a, b) => a.week.localeCompare(b.week));
 
   const weeks = [...atWeek.keys()].sort();
   const lastStart = weeks[weeks.length - 1];
   const testDates = quarterSundays(FIRST_TEST, lastStart);
-  console.log(`${testDates.length} test dates, ${testDates[0]} to ${testDates[testDates.length - 1]}`);
+  console.log(
+    `${testDates.length} test dates, ${testDates[0]} to ${testDates[testDates.length - 1]}`,
+  );
 
   // Base rate known at T: share of closed rank 20-500 rows that beat BTC.
   const baseByWeek = new Map<string, { k: number; n: number }>();
@@ -101,15 +126,24 @@ async function main() {
     baseByWeek.set(week, { k, n });
   }
 
-  const points: { testDate: string; bucket: string; predicted: number; realized: number; n: number }[] = [];
+  const points: {
+    testDate: string;
+    bucket: string;
+    predicted: number;
+    realized: number;
+    n: number;
+  }[] = [];
   const verdicts: Record<VerdictKind, { n: number; beat: number }> = {
     not_enough_history: { n: 0, beat: 0 },
     rotate: { n: 0, beat: 0 },
     hold: { n: 0, beat: 0 },
     no_clear_edge: { n: 0, beat: 0 },
   };
+  /** Predictions that needed step i of BAND_STEPS (index 0 unused). */
+  const widened = BAND_STEPS.map(() => 0);
   let brier = 0;
   let brierBase = 0;
+  const dateScores: DateScore[] = [];
   let predicted = 0;
   let tested = 0;
   const examples: Record<string, unknown>[] = [];
@@ -126,27 +160,43 @@ async function main() {
     if (baseN === 0) continue;
     const base = baseK / baseN;
     const buckets = new Map<number, { p: number; y: number; n: number }>();
+    const day: DateScore = { testDate: test, n: 0, brier: 0, base: 0 };
 
     for (const target of atWeek.get(test) ?? []) {
       if (target.rankAdj < RANK_MIN || target.rankAdj > RANK_MAX) continue;
       tested++;
-      const band = rankBand(target.rankAdj);
-      const candidates: Row[] = [];
-      for (let rank = band.min; rank <= band.max; rank++) {
-        for (const row of byRank.get(rank) ?? []) {
-          if (row.week > cutoff) break;
-          if (row.lineageId !== target.lineageId && inBands(target, row)) candidates.push(row);
+      // Same widening as the app: standard bands, then wider fixed steps
+      // while n is under the minimum.
+      let episodes: ReturnType<typeof selectEpisodes<Row>> = [];
+      for (let i = 0; i < BAND_STEPS.length; i++) {
+        const step = BAND_STEPS[i];
+        const band = rankBand(target.rankAdj, step);
+        const candidates: Row[] = [];
+        for (let rank = band.min; rank <= band.max; rank++) {
+          for (const row of byRank.get(rank) ?? []) {
+            if (row.week > cutoff) break;
+            if (
+              row.lineageId !== target.lineageId &&
+              inBands(target, row, step)
+            )
+              candidates.push(row);
+          }
+        }
+        episodes = selectEpisodes(candidates, target, target.lineageId, step);
+        if (episodes.length >= MIN_EPISODES) {
+          if (i > 0) widened[i]++;
+          break;
         }
       }
-      const episodes = selectEpisodes(candidates, target, target.lineageId);
       const outcomes: EpisodeOutcome[] = episodes.map((e) => ({
         lineageId: e.lineageId,
+        week: e.week,
         cycle: e.cycle,
         beatBtc: e.beat,
         fellOut: e.fellOut,
         reachedTop20: e.top20,
         coinReturn: e.ret,
-        btcReturn: 0,
+        btcReturn: null,
       }));
       const summary = summarize(outcomes);
       const verdict = decide(summary);
@@ -159,6 +209,9 @@ async function main() {
       brier += (p - y) ** 2;
       brierBase += (base - y) ** 2;
       predicted++;
+      day.n++;
+      day.brier += (p - y) ** 2;
+      day.base += (base - y) ** 2;
       const bucket = Math.min(9, Math.floor(p * 10));
       const cell = buckets.get(bucket) ?? { p: 0, y: 0, n: 0 };
       cell.p += p;
@@ -183,6 +236,7 @@ async function main() {
         });
       }
     }
+    if (day.n) dateScores.push(day);
     for (const [bucket, cell] of buckets) {
       points.push({
         testDate: test,
@@ -195,7 +249,19 @@ async function main() {
   }
 
   examples.sort((a, b) => (a.rankAdj as number) - (b.rankAdj as number));
-  const example = examples.find((e) => e.verdict !== "no_clear_edge") ?? examples[0] ?? null;
+  const example =
+    examples.find((e) => e.verdict !== "no_clear_edge") ?? examples[0] ?? null;
+  const detail = {
+    gain: brierGain(dateScores),
+    gainInterval: gainInterval(dateScores),
+    byYear: byYear(dateScores),
+    /** Predictions per BAND_STEPS entry; index 0 is the standard match. */
+    steps: BAND_STEPS.map((_, i) =>
+      i === 0
+        ? predicted - widened.slice(1).reduce((a, b) => a + b, 0)
+        : widened[i],
+    ),
+  };
   const summary = {
     horizon: HORIZON_WEEKS,
     tested,
@@ -204,10 +270,28 @@ async function main() {
     brierBaseline: brierBase / predicted,
     verdicts,
     example,
+    detail,
   };
   console.log(JSON.stringify({ ...summary, example: undefined }, null, 2));
   console.log("example:", example);
-  console.log("other examples:", examples.slice(0, 8).map((e) => `${e.coin} ${e.verdict} p=${(e.predicted as number).toFixed(2)} beat=${e.beatBtc}`).join("; "));
+  console.log("predictions that needed a wider step:", widened.slice(1));
+  console.log(
+    `Brier gain ${(detail.gain * 100).toFixed(1)}%, 95% block-bootstrap range ${(detail.gainInterval.lo * 100).toFixed(1)}% to ${(detail.gainInterval.hi * 100).toFixed(1)}%`,
+  );
+  for (const year of detail.byYear)
+    console.log(
+      `${year.year} n ${year.n} brier ${year.brier.toFixed(4)} baseline ${year.brierBaseline.toFixed(4)} gain ${(year.gain * 100).toFixed(1)}%`,
+    );
+  console.log(
+    "other examples:",
+    examples
+      .slice(0, 8)
+      .map(
+        (e) =>
+          `${e.coin} ${e.verdict} p=${(e.predicted as number).toFixed(2)} beat=${e.beatBtc}`,
+      )
+      .join("; "),
+  );
 
   // Reliability across all dates, for a quick look.
   const reliability = new Map<string, { p: number; y: number; n: number }>();
@@ -218,8 +302,12 @@ async function main() {
     cell.n += point.n;
     reliability.set(point.bucket, cell);
   }
-  for (const [bucket, cell] of [...reliability].sort((a, b) => parseInt(a[0]) - parseInt(b[0]))) {
-    console.log(`${bucket.padEnd(8)} predicted ${(cell.p / cell.n).toFixed(3)} actual ${(cell.y / cell.n).toFixed(3)} n ${cell.n}`);
+  for (const [bucket, cell] of [...reliability].sort(
+    (a, b) => parseInt(a[0]) - parseInt(b[0]),
+  )) {
+    console.log(
+      `${bucket.padEnd(8)} predicted ${(cell.p / cell.n).toFixed(3)} actual ${(cell.y / cell.n).toFixed(3)} n ${cell.n}`,
+    );
   }
 
   await writeJson(join(DATA_DIR, "calibration.json"), { summary, points });
@@ -233,7 +321,9 @@ async function main() {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    await client.query("DELETE FROM calibration_points WHERE horizon = $1", [HORIZON_WEEKS]);
+    await client.query("DELETE FROM calibration_points WHERE horizon = $1", [
+      HORIZON_WEEKS,
+    ]);
     await client.query(
       `INSERT INTO calibration_points (horizon, test_date, bucket, predicted, realized, n)
        SELECT $1, * FROM unnest($2::date[], $3::text[], $4::float4[], $5::float4[], $6::int4[])`,
@@ -247,12 +337,22 @@ async function main() {
       ],
     );
     await client.query(
-      `INSERT INTO calibration_summary (horizon, brier, brier_baseline, n, tested, example_json, verdicts_json, computed_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, now())
+      `INSERT INTO calibration_summary (horizon, brier, brier_baseline, n, tested, example_json, verdicts_json, detail_json, computed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())
        ON CONFLICT (horizon) DO UPDATE SET brier = excluded.brier, brier_baseline = excluded.brier_baseline,
          n = excluded.n, tested = excluded.tested, example_json = excluded.example_json,
-         verdicts_json = excluded.verdicts_json, computed_at = excluded.computed_at`,
-      [HORIZON_WEEKS, summary.brier, summary.brierBaseline, predicted, tested, JSON.stringify(example), JSON.stringify(verdicts)],
+         verdicts_json = excluded.verdicts_json, detail_json = excluded.detail_json,
+         computed_at = excluded.computed_at`,
+      [
+        HORIZON_WEEKS,
+        summary.brier,
+        summary.brierBaseline,
+        predicted,
+        tested,
+        JSON.stringify(example),
+        JSON.stringify(verdicts),
+        JSON.stringify(detail),
+      ],
     );
     await client.query("COMMIT");
     console.log(`Saved ${points.length} calibration points.`);

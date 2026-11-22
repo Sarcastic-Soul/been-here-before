@@ -6,6 +6,7 @@ import { decide, summarize, type EpisodeOutcome } from "@/lib/engine/verdict";
 function episodes(n: number, wins: number): EpisodeOutcome[] {
   return Array.from({ length: n }, (_, i) => ({
     lineageId: i,
+    week: "2018-01-07",
     cycle: "2016-20",
     beatBtc: i < wins,
     fellOut: false,
@@ -53,5 +54,35 @@ describe("decide", () => {
 
   it("says no clear edge in between", () => {
     expect(decide(summarize(episodes(40, 16)))).toBe("no_clear_edge");
+  });
+
+  it("widens the range when episodes bunch in time", () => {
+    // 100 episodes, 20 wins. Spread evenly over 5 half-years the verdict is
+    // rotate; with every win in one half-year the range widens past 35%.
+    const halves = [
+      "2018-01-07",
+      "2018-08-05",
+      "2019-01-06",
+      "2019-08-04",
+      "2020-01-05",
+    ];
+    // Five half-years of 20 episodes each.
+    const even = episodes(100, 0).map((e, i) => ({
+      ...e,
+      week: halves[Math.floor(i / 20)],
+      beatBtc: i % 5 === 0,
+    }));
+    const bunched = episodes(100, 20).map((e, i) => ({
+      ...e,
+      week: halves[Math.floor(i / 20)],
+    }));
+    const a = summarize(even);
+    const b = summarize(bunched);
+    expect(a.beatBtc.k).toBe(20);
+    expect(b.beatBtc.k).toBe(20);
+    expect(decide(a)).toBe("rotate");
+    expect(b.beatBtc.nEff).toBeLessThan(20);
+    expect(decide(b)).toBe("no_clear_edge");
+    expect(b.clusters).toBe(5);
   });
 });

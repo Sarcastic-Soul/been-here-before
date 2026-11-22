@@ -6,14 +6,16 @@
 import {
   AGE_BUCKETS,
   ageBucket,
-  DRAWDOWN_BAND,
+  BAND_STEPS,
   nearestTwins,
   rankBand,
   selectEpisodes,
+  STANDARD,
+  type BandStep,
   type CandidateRow,
   type MatchState,
 } from "@/lib/engine/match";
-import { rateOf } from "@/lib/engine/stats";
+import { clusteredRate, halfYear } from "@/lib/engine/stats";
 import {
   decide,
   summarize,
@@ -43,29 +45,48 @@ export function addWeeks(day: string, weeks: number): string {
 }
 
 /** The SQL prefilter. Slightly wider than the bands; selectEpisodes applies the exact test. */
-export function queryBands(target: MatchState) {
-  const rank = rankBand(target.rankAdj);
+export function queryBands(target: MatchState, step: BandStep = STANDARD) {
+  const rank = rankBand(target.rankAdj, step);
   const bucket = ageBucket(target.ageWeeks);
   const ageMax = AGE_BUCKETS[bucket].max;
   return {
     rankMin: rank.min,
     rankMax: rank.max,
-    drawdownMin: target.drawdown - DRAWDOWN_BAND - 1e-4,
-    drawdownMax: target.drawdown + DRAWDOWN_BAND + 1e-4,
+    drawdownMin: target.drawdown - step.drawdownBand - 1e-4,
+    drawdownMax: target.drawdown + step.drawdownBand + 1e-4,
     ageMin: bucket === 0 ? 0 : AGE_BUCKETS[bucket - 1].max,
     ageMax: Number.isFinite(ageMax) ? ageMax : null,
   };
 }
 
-export function describeBands(target: MatchState): Bands {
-  const rank = rankBand(target.rankAdj);
+export function describeBands(
+  target: MatchState,
+  stepIndex = 0,
+  tried: readonly number[] = [],
+): Bands {
+  const step = BAND_STEPS[stepIndex];
+  const rank = rankBand(target.rankAdj, step);
   return {
     rankMin: rank.min,
     rankMax: rank.max,
-    drawdownMin: Math.max(0, target.drawdown - DRAWDOWN_BAND),
-    drawdownMax: Math.min(1, target.drawdown + DRAWDOWN_BAND),
+    drawdownMin: Math.max(0, target.drawdown - step.drawdownBand),
+    drawdownMax: Math.min(1, target.drawdown + step.drawdownBand),
     ageLabel: AGE_BUCKETS[ageBucket(target.ageWeeks)].label,
+    step: stepIndex,
+    rankFactor: step.rankFactor,
+    drawdownBand: step.drawdownBand,
+    tried: [...tried],
   };
+}
+
+/** How many episodes a step keeps, for deciding whether to widen. */
+export function episodeCount(
+  rows: readonly CandidateRow[],
+  target: MatchState,
+  lineageId: number,
+  stepIndex: number,
+): number {
+  return selectEpisodes(rows, target, lineageId, BAND_STEPS[stepIndex]).length;
 }
 
 export type Analysis = Pick<
@@ -75,6 +96,7 @@ export type Analysis = Pick<
   | "verdictText"
   | "summary"
   | "beatBtc1y"
+  | "survivorsOnly"
   | "byCycle"
   | "episodes"
 > & { twinEpisodes: EpisodeRow[] };
@@ -85,6 +107,9 @@ export type Analysis = Pick<
  * @param rows        candidate rows with a finished 2-year outcome
  * @param btcByWeek   BTC price per snapshot week
  * @param names       name and symbol per CMC id, for display
+ * @param stepIndex   which BAND_STEPS entry the rows were matched with
+ * @param tried       episodes found at each step tried before this one
+ * @param alive       lineages still in the latest weekly top 5,000
  */
 export function analyze(
   target: MatchState,
@@ -92,8 +117,11 @@ export function analyze(
   rows: readonly OutcomeRow[],
   btcByWeek: ReadonlyMap<string, number>,
   names: ReadonlyMap<number, { name: string; symbol: string }>,
+  stepIndex = 0,
+  tried: readonly number[] = [],
+  alive: ReadonlySet<number> = new Set(),
 ): Analysis {
-  const picked = selectEpisodes(rows, target, lineageId);
+  const picked = selectEpisodes(rows, target, lineageId, BAND_STEPS[stepIndex]);
   const episodes: EpisodeRow[] = picked.map((row) => {
     const btcStart = btcByWeek.get(row.week);
     const btcEnd = btcByWeek.get(addWeeks(row.week, HORIZON_WEEKS));
@@ -114,30 +142,38 @@ export function analyze(
       beatBtc52w: row.beatBtc52w,
       fellOut104w: row.fellOut104w,
       reachedTop20: row.reachedTop20,
+      aliveToday: alive.has(row.lineageId),
     };
   });
 
   const outcomes: EpisodeOutcome[] = episodes.map((e) => ({
     lineageId: e.lineageId,
+    week: e.week,
     cycle: e.cycle,
     beatBtc: e.beatBtc104w,
     fellOut: e.fellOut104w,
     reachedTop20: e.reachedTop20,
     coinReturn: e.ret104w,
-    btcReturn: e.btcRet104w ?? 0,
+    btcReturn: e.btcRet104w,
   }));
   const summary = summarize(outcomes);
   const verdict = decide(summary);
   const twinEpisodes = nearestTwins(episodes, target, TWIN_COUNT);
 
   return {
-    bands: describeBands(target),
+    bands: describeBands(target, stepIndex, tried.length ? tried : [summary.n]),
     verdict,
     verdictText: VERDICT_TEXT[verdict],
     summary,
-    beatBtc1y: rateOf(
+    beatBtc1y: clusteredRate(
       episodes.filter((e) => e.beatBtc52w !== null),
       (e) => e.beatBtc52w === true,
+      (e) => halfYear(e.week),
+    ),
+    survivorsOnly: clusteredRate(
+      episodes.filter((e) => e.aliveToday),
+      (e) => e.beatBtc104w,
+      (e) => halfYear(e.week),
     ),
     byCycle: summarizeByCycle(outcomes),
     episodes,

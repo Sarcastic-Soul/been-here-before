@@ -25,6 +25,12 @@ export function VerdictSummary({
   const { beatBtc } = summary;
   const refused = verdict === "not_enough_history";
   const Heading = headingLevel === 1 ? "h1" : "h2";
+  const { bands } = data;
+  const widened = (bands.step ?? 0) > 0;
+  const widerRule =
+    bands.rankFactor && bands.drawdownBand
+      ? `rank ×${bands.rankFactor} and drawdown ±${Math.round(bands.drawdownBand * 100)} points`
+      : null;
 
   return (
     <div>
@@ -43,10 +49,15 @@ export function VerdictSummary({
 
       {refused ? (
         <p className="text-ink-body mt-4 max-w-[34em] text-[15px]">
-          Only <b>{summary.n}</b> past{" "}
+          {widened && widerRule ? (
+            <>Even with the widest match ({widerRule}), only </>
+          ) : (
+            <>Only </>
+          )}
+          <b>{summary.n}</b> past{" "}
           {summary.n === 1 ? "episode matches" : "episodes match"} this spot. We
-          give a verdict from {MIN_EPISODES} upward, so here are the closest
-          twins without one.
+          give a verdict from {MIN_EPISODES} upward, so rates are hidden and
+          here are the closest twins without one.
         </p>
       ) : (
         <div className="mt-4 flex flex-wrap items-end gap-x-7 gap-y-3">
@@ -64,6 +75,14 @@ export function VerdictSummary({
             from {count(summary.distinctCoins)} different coins.
           </p>
         </div>
+      )}
+
+      {widened && !refused && widerRule && (
+        <p className="border-accent text-ink-body mt-4 max-w-[34em] border-l-2 pl-3 text-[14px]">
+          <b>Widened match.</b> The standard match found only{" "}
+          {bands.tried?.[0] ?? "a few"} past episodes, so this uses {widerRule},
+          the first fixed step that reaches {MIN_EPISODES}.
+        </p>
       )}
 
       {data.episodes.length > 0 && (

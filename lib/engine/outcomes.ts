@@ -20,12 +20,20 @@ export function computeOutcomes(
 ): Outcome[] {
   const byWeek = new Map(points.map((point) => [point.week, point]));
 
-  function priceNear(week: number): number | null {
+  /**
+   * The coin's price at the end week, or the nearest week within the
+   * tolerance. BTC is then read at that same week, so both returns cover the
+   * same span.
+   */
+  function priceNear(week: number): { price: number; btc: number } | null {
     for (let offset = 0; offset <= END_TOLERANCE_WEEKS; offset++) {
-      for (const candidate of offset === 0 ? [week] : [week - offset, week + offset]) {
+      for (const candidate of offset === 0
+        ? [week]
+        : [week - offset, week + offset]) {
         if (candidate > lastWeek) continue;
         const point = byWeek.get(candidate);
-        if (point && point.price > 0) return point.price;
+        const btc = btcPrice[candidate];
+        if (point && point.price > 0 && btc) return { price: point.price, btc };
       }
     }
     return null;
@@ -46,15 +54,16 @@ export function computeOutcomes(
       };
     }
 
-    const endPrice = priceNear(end);
-    const fellOut = endPrice === null;
-    const coinReturn = fellOut ? -1 : endPrice / point.price - 1;
-    const btcReturn = btcEnd / btcStart - 1;
+    const endPoint = priceNear(end);
+    const fellOut = endPoint === null;
+    const coinReturn = fellOut ? -1 : endPoint.price / point.price - 1;
+    const btcReturn = (endPoint?.btc ?? btcEnd) / btcStart - 1;
 
     let reachedTop20 = false;
     for (let week = point.week + 1; week <= end && !reachedTop20; week++) {
       const later = byWeek.get(week);
-      reachedTop20 = !!later && !later.continuation && later.rankAdj <= TOP_RANK;
+      reachedTop20 =
+        !!later && !later.continuation && later.rankAdj <= TOP_RANK;
     }
 
     return {

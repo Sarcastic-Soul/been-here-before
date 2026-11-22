@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { CoinSearch } from "@/components/coin-search";
@@ -11,6 +11,7 @@ import { ReceiptDrawer } from "@/components/receipt-drawer";
 import { TwinChart } from "@/components/twin-chart";
 import { VerdictSummary } from "@/components/verdict-summary";
 import { median, type Rate } from "@/lib/engine/stats";
+import { MIN_EPISODES } from "@/lib/engine/verdict";
 import {
   count,
   drawdownPct,
@@ -35,8 +36,15 @@ export async function generateMetadata({
   const { slug } = await params;
   if (!SLUG.test(slug)) return { title: "Coin not found" };
   const { data } = await getVerdictOrSaved(slug);
+  if (data.status === "moved" && data.movedTo)
+    return { title: `Moved to ${data.movedTo.name}` };
   if (!data.coin) return { title: "Coin not found" };
   if (data.status !== "ok") return { title: data.coin.name };
+  if (data.verdict === "not_enough_history")
+    return {
+      title: `${data.coin.name}: ${data.verdictText}`,
+      description: `Only ${data.summary.n} past coins stood in ${data.coin.name}'s spot, too few for a verdict. See the closest twins and how they did against BTC.`,
+    };
   return {
     title: `${data.coin.name}: ${data.verdictText}`,
     description: `${data.summary.beatBtc.k} of ${data.summary.n} past coins in ${data.coin.name}'s spot beat holding BTC over 2 years (${pct(data.summary.beatBtc.p)}, 95% range ${pctRange(data.summary.beatBtc.lo, data.summary.beatBtc.hi)}).`,
@@ -54,9 +62,14 @@ export default function CoinPage({ params }: PageProps<"/coin/[slug]">) {
 }
 
 async function CoinVerdict({ slug }: { slug: string }) {
+  const lower = slug.toLowerCase();
+  if (lower !== slug && SLUG.test(lower)) redirect(`/coin/${lower}`);
   if (!SLUG.test(slug)) notFound();
   const { data, savedAt } = await getVerdictOrSaved(slug);
   if (data.status === "not_found") notFound();
+  // Migrated coins and symbols (/coin/matic, /coin/btc) go to the live coin.
+  if (data.status === "moved" && data.movedTo)
+    redirect(`/coin/${data.movedTo.slug}`);
   if (data.status !== "ok") return <Refused data={data} />;
   // A saved copy means the database is down, so do not ask it for the receipt.
   const receipt = savedAt ? null : await getReceipt(data.coin.id);
@@ -112,6 +125,7 @@ function Verdict({
   savedAt: string | null;
 }) {
   const { summary, state, coin } = data;
+  const refused = data.verdict === "not_enough_history";
   const relatives = data.episodes
     .map((e) => relativeToBtc(e.ret104w, e.btcRet104w))
     .filter((v): v is number => v !== null);
@@ -150,7 +164,12 @@ function Verdict({
             </span>
           </div>
 
-          {summary.n > 0 && (
+          {refused ? (
+            <p className="border-ink text-ink-body border-t pt-4 text-[15px]">
+              Rates are hidden below {MIN_EPISODES} episodes: with so few, one
+              coin more or less swings them by tens of points.
+            </p>
+          ) : (
             <dl className="border-ink border-t">
               {outcomes.map(([label, rate]) => (
                 <div
@@ -160,7 +179,7 @@ function Verdict({
                   <dt className="text-[15px]">{label}</dt>
                   <dd className="flex items-center gap-3">
                     <RateBar rate={rate} width={84} />
-                    <span className="num w-[92px] text-right text-sm">
+                    <span className="num min-w-[104px] text-right text-sm whitespace-nowrap">
                       {pct(rate.p)}{" "}
                       <span className="text-muted text-xs">
                         {pctRange(rate.lo, rate.hi)}
@@ -185,10 +204,32 @@ function Verdict({
               </div>
             </dl>
           )}
-          <p className="text-muted mt-4 text-[13px]">
-            Ranges are Wilson 95% intervals. The dot on each bar is the share;
-            the black line is the range; the tick is 50%.
-          </p>
+          {!refused && (
+            <p className="text-muted mt-4 text-[13px]">
+              Ranges are 95% Wilson intervals.{" "}
+              {summary.beatBtc.nEff !== undefined &&
+                summary.clusters !== undefined &&
+                summary.beatBtc.nEff < summary.n - 0.5 && (
+                  <>
+                    The {count(summary.n)} episodes start in {summary.clusters}{" "}
+                    half-years and partly move together, so the ranges count
+                    them as about {count(Math.round(summary.beatBtc.nEff))}{" "}
+                    independent ones.{" "}
+                  </>
+                )}
+              The dot on each bar is the share; the black line is the range; the
+              tick is 50%.
+            </p>
+          )}
+          {!refused &&
+            data.survivorsOnly &&
+            data.survivorsOnly.n > 0 &&
+            data.survivorsOnly.n < summary.n && (
+              <SurvivorNote
+                all={summary.beatBtc}
+                survivors={data.survivorsOnly}
+              />
+            )}
         </aside>
       </div>
 
@@ -244,7 +285,7 @@ function Verdict({
         </Section>
       )}
 
-      {data.byCycle.length > 0 && (
+      {!refused && data.byCycle.length > 0 && (
         <Section
           id="cycles"
           title="By halving cycle"
@@ -287,13 +328,41 @@ function Verdict({
   );
 }
 
+/** What the same study would say if it forgot the coins that are gone. */
+function SurvivorNote({ all, survivors }: { all: Rate; survivors: Rate }) {
+  const gone = all.n - survivors.n;
+  const gap = survivors.p - all.p;
+  return (
+    <div className="border-ink mt-8 border-t pt-4">
+      <h2 className="mb-2 text-[15px] font-medium">
+        If dead coins were left out
+      </h2>
+      <p className="text-ink-body text-[15px]">
+        Of these {count(all.n)} past episodes, {count(survivors.n)} are coins
+        still in the top 5,000 today. Counting only those,{" "}
+        <b>{pct(survivors.p)}</b> beat BTC. With the {count(gone)} whose coin is
+        gone counted too, it is <b>{pct(all.p)}</b>.
+      </p>
+      <p className="text-muted mt-2 text-[13px]">
+        {gap > 0.02
+          ? "Most “after a crash” charts only see coins that still exist, so they make a spot like this look better than it was."
+          : gap < -0.02
+            ? "Here leaving them out would look worse, not better: some coins beat BTC over their two years and only dropped out later."
+            : "Here it barely changes the answer. Dead coins matter most further down the rankings."}
+      </p>
+    </div>
+  );
+}
+
 function Refused({ data }: { data: VerdictRefused }) {
   const title =
     data.status === "benchmark"
       ? "Bitcoin is the yardstick."
       : data.status === "excluded"
         ? "Not ranked: it tracks another asset."
-        : "Outside what we cover.";
+        : data.lastSeen
+          ? "Gone from the top 5,000."
+          : "Outside what we cover.";
   return (
     <article className="mx-auto max-w-[1360px] px-4 py-14 sm:px-8 lg:px-12">
       <p className="text-muted text-[13px]">

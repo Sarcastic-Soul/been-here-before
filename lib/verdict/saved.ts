@@ -6,7 +6,7 @@ import path from "node:path";
 import { unstable_rethrow } from "next/navigation";
 import { cache } from "react";
 
-import { getVerdict } from "./get-verdict";
+import { getSlugIndex, getVerdict } from "./get-verdict";
 import type { VerdictOk, VerdictResponse } from "./types";
 
 const SLUG = /^[a-z0-9-]{1,100}$/;
@@ -64,9 +64,37 @@ export const getVerdictOrSaved = cache(
   async (
     slug: string,
   ): Promise<{ data: VerdictResponse; savedAt: string | null }> => {
-    const live = getVerdict(slug);
     const wait = timer(DB_WAIT_MS);
     try {
+      // Unknown slugs never reach getVerdict, so nothing is cached for them.
+      // If the index itself is slow or down, skip the check.
+      const index = await Promise.race([
+        getSlugIndex().catch((error: unknown) => {
+          unstable_rethrow(error);
+          return null;
+        }),
+        wait.done,
+      ]);
+      if (index && index !== TIMED_OUT && !index.slugs.has(slug)) {
+        const target = index.symbols.get(slug);
+        return {
+          data: target
+            ? {
+                status: "moved",
+                coin: null,
+                movedTo: target,
+                message: `"${slug}" is the symbol of ${target.name}.`,
+              }
+            : {
+                status: "not_found",
+                coin: null,
+                message: `No coin with slug "${slug}".`,
+              },
+          savedAt: null,
+        };
+      }
+
+      const live = getVerdict(slug);
       const first = await Promise.race([live, wait.done]);
       if (first !== TIMED_OUT) return { data: first, savedAt: null };
       const saved = await readSaved(slug);

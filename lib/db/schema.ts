@@ -116,6 +116,20 @@ export const currentState = pgTable("current_state", {
   bornAt: timestamp("born_at", { withTimezone: true }),
 });
 
+/**
+ * Highest price seen per lineage by the daily cron. Kept apart from
+ * current_state, which is rebuilt every day, so a coin that leaves the top
+ * 2,000 for a while keeps its peak when it returns.
+ */
+export const lineagePeaks = pgTable("lineage_peaks", {
+  lineageId: integer("lineage_id").primaryKey(),
+  /** Lineage-root units, like coin_weeks. */
+  runningPeakUsd: doublePrecision("running_peak_usd").notNull(),
+  peakAt: timestamp("peak_at", { withTimezone: true }).notNull(),
+  bornAt: timestamp("born_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+});
+
 export const calibrationPoints = pgTable(
   "calibration_points",
   {
@@ -141,7 +155,11 @@ export const calibrationSummary = pgTable("calibration_summary", {
   exampleJson: jsonb("example_json"),
   /** Per verdict kind: how many times it was given and how many of those coins beat BTC. */
   verdictsJson: jsonb("verdicts_json"),
-  computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow(),
+  /** Brier gain with its interval, scores by year, predictions per widening step. */
+  detailJson: jsonb("detail_json"),
+  computedAt: timestamp("computed_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 /** Latest response per request kind, API key stripped. Shown in the receipt drawer. */

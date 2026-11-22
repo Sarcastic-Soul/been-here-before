@@ -1,0 +1,1 @@
+ALTER TABLE "calibration_summary" ADD COLUMN "detail_json" jsonb;
