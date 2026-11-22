@@ -9,8 +9,13 @@ export async function GET(request: Request) {
   const params = Object.fromEntries(new URL(request.url).searchParams);
   const parsed = Query.safeParse(params);
   if (!parsed.success) {
-    return Response.json({ error: "Pass ?slug= with a CMC slug, for example ?slug=filecoin" }, { status: 400 });
+    return Response.json(
+      { error: "Pass ?slug= with a CMC slug, for example ?slug=filecoin" },
+      { status: 400 },
+    );
   }
   const result = await getVerdict(parsed.data.slug);
-  return Response.json(result, { status: result.status === "not_found" ? 404 : 200 });
+  return Response.json(result, {
+    status: result.status === "not_found" ? 404 : 200,
+  });
 }

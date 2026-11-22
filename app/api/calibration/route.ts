@@ -7,6 +7,10 @@ export async function GET() {
   // Request time, not build time: the build must not depend on the database.
   await connection();
   const calibration = await getCalibration();
-  if (!calibration) return Response.json({ error: "calibration has not run yet" }, { status: 503 });
+  if (!calibration)
+    return Response.json(
+      { error: "calibration has not run yet" },
+      { status: 503 },
+    );
   return Response.json(calibration);
 }

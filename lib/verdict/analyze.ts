@@ -14,7 +14,13 @@ import {
   type MatchState,
 } from "@/lib/engine/match";
 import { rateOf } from "@/lib/engine/stats";
-import { decide, summarize, summarizeByCycle, VERDICT_TEXT, type EpisodeOutcome } from "@/lib/engine/verdict";
+import {
+  decide,
+  summarize,
+  summarizeByCycle,
+  VERDICT_TEXT,
+  type EpisodeOutcome,
+} from "@/lib/engine/verdict";
 
 import type { Bands, EpisodeRow, TwinPoint, VerdictOk } from "./types";
 
@@ -31,7 +37,9 @@ export interface OutcomeRow extends CandidateRow {
 }
 
 export function addWeeks(day: string, weeks: number): string {
-  return new Date(Date.parse(`${day}T00:00:00Z`) + weeks * 7 * 86_400_000).toISOString().slice(0, 10);
+  return new Date(Date.parse(`${day}T00:00:00Z`) + weeks * 7 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
 }
 
 /** The SQL prefilter. Slightly wider than the bands; selectEpisodes applies the exact test. */
@@ -62,7 +70,13 @@ export function describeBands(target: MatchState): Bands {
 
 export type Analysis = Pick<
   VerdictOk,
-  "bands" | "verdict" | "verdictText" | "summary" | "beatBtc1y" | "byCycle" | "episodes"
+  | "bands"
+  | "verdict"
+  | "verdictText"
+  | "summary"
+  | "beatBtc1y"
+  | "byCycle"
+  | "episodes"
 > & { twinEpisodes: EpisodeRow[] };
 
 /**
@@ -146,10 +160,17 @@ export function twinPath(
   const startMs = Date.parse(`${start}T00:00:00Z`);
   const path: TwinPoint[] = [];
   for (const row of rows) {
-    const t = Math.round((Date.parse(`${row.week}T00:00:00Z`) - startMs) / (7 * 86_400_000));
+    const t = Math.round(
+      (Date.parse(`${row.week}T00:00:00Z`) - startMs) / (7 * 86_400_000),
+    );
     const btc = btcByWeek.get(row.week);
     if (t < 0 || t > HORIZON_WEEKS || !btc) continue;
-    path.push({ t, vsBtc: Number(((row.priceUsd / first.priceUsd / (btc / btcStart)) * 100).toFixed(3)) });
+    path.push({
+      t,
+      vsBtc: Number(
+        ((row.priceUsd / first.priceUsd / (btc / btcStart)) * 100).toFixed(3),
+      ),
+    });
   }
   return path;
 }

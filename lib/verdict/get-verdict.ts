@@ -1,12 +1,33 @@
 import "server-only";
 
-import { and, asc, between, desc, eq, gte, ilike, inArray, isNotNull, lt, ne, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  between,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  isNotNull,
+  lt,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { db } from "@/lib/db/client";
 import { coins, coinWeeks, currentState, marketWeeks } from "@/lib/db/schema";
 
-import { addWeeks, analyze, HORIZON_WEEKS, queryBands, twinPath, type OutcomeRow } from "./analyze";
+import {
+  addWeeks,
+  analyze,
+  HORIZON_WEEKS,
+  queryBands,
+  twinPath,
+  type OutcomeRow,
+} from "./analyze";
 import type { CoinInfo, SearchHit, VerdictResponse } from "./types";
 
 /** Verdicts cover adjusted ranks 1 to 1000 (see the method page). */
@@ -29,18 +50,26 @@ async function btcPrices(): Promise<Map<string, number>> {
   "use cache";
   cacheLife("days");
   cacheTag("history");
-  const rows = await db().select({ week: marketWeeks.week, btc: marketWeeks.btcPriceUsd }).from(marketWeeks);
+  const rows = await db()
+    .select({ week: marketWeeks.week, btc: marketWeeks.btcPriceUsd })
+    .from(marketWeeks);
   return new Map(rows.map((row) => [row.week, row.btc]));
 }
 
 /** Resolve a slug to one coin: live coins first, then the most recently seen. */
 async function findCoin(slug: string) {
   const [row] = await db()
-    .select({ ...coinColumns, live: sql<boolean>`${currentState.coinId} is not null` })
+    .select({
+      ...coinColumns,
+      live: sql<boolean>`${currentState.coinId} is not null`,
+    })
     .from(coins)
     .leftJoin(currentState, eq(currentState.coinId, coins.id))
     .where(eq(coins.slug, slug))
-    .orderBy(desc(sql`${currentState.coinId} is not null`), desc(coins.lastWeek))
+    .orderBy(
+      desc(sql`${currentState.coinId} is not null`),
+      desc(coins.lastWeek),
+    )
     .limit(1);
   return row ?? null;
 }
@@ -51,7 +80,12 @@ export async function getVerdict(slug: string): Promise<VerdictResponse> {
   cacheTag("daily");
 
   const found = await findCoin(slug);
-  if (!found) return { status: "not_found", coin: null, message: `No coin with slug "${slug}".` };
+  if (!found)
+    return {
+      status: "not_found",
+      coin: null,
+      message: `No coin with slug "${slug}".`,
+    };
   const coin: CoinInfo = {
     id: found.id,
     lineageId: found.lineageId,
@@ -77,7 +111,10 @@ export async function getVerdict(slug: string): Promise<VerdictResponse> {
     };
   }
 
-  const [state] = await db().select().from(currentState).where(eq(currentState.coinId, coin.id));
+  const [state] = await db()
+    .select()
+    .from(currentState)
+    .where(eq(currentState.coinId, coin.id));
   if (!state || state.rankAdj > MAX_RANK) {
     return {
       status: "not_covered",
@@ -88,7 +125,11 @@ export async function getVerdict(slug: string): Promise<VerdictResponse> {
     };
   }
 
-  const target = { rankAdj: state.rankAdj, drawdown: state.drawdown, ageWeeks: state.ageWeeks };
+  const target = {
+    rankAdj: state.rankAdj,
+    drawdown: state.drawdown,
+    ageWeeks: state.ageWeeks,
+  };
   const q = queryBands(target);
   const candidates = await db()
     .select({
@@ -130,11 +171,22 @@ export async function getVerdict(slug: string): Promise<VerdictResponse> {
   const [btc, labels] = await Promise.all([
     btcPrices(),
     ids.length
-      ? db().select({ id: coins.id, name: coins.name, symbol: coins.symbol }).from(coins).where(inArray(coins.id, ids))
+      ? db()
+          .select({ id: coins.id, name: coins.name, symbol: coins.symbol })
+          .from(coins)
+          .where(inArray(coins.id, ids))
       : Promise.resolve([]),
   ]);
-  const names = new Map(labels.map((row) => [row.id, { name: row.name, symbol: row.symbol }]));
-  const { twinEpisodes, ...analysis } = analyze(target, coin.lineageId, rows, btc, names);
+  const names = new Map(
+    labels.map((row) => [row.id, { name: row.name, symbol: row.symbol }]),
+  );
+  const { twinEpisodes, ...analysis } = analyze(
+    target,
+    coin.lineageId,
+    rows,
+    btc,
+    names,
+  );
 
   const twins = await Promise.all(
     twinEpisodes.map(async (episode) => {
@@ -144,7 +196,11 @@ export async function getVerdict(slug: string): Promise<VerdictResponse> {
         .where(
           and(
             eq(coinWeeks.lineageId, episode.lineageId),
-            between(coinWeeks.week, episode.week, addWeeks(episode.week, HORIZON_WEEKS)),
+            between(
+              coinWeeks.week,
+              episode.week,
+              addWeeks(episode.week, HORIZON_WEEKS),
+            ),
           ),
         )
         .orderBy(asc(coinWeeks.week));
@@ -174,7 +230,9 @@ export async function getVerdict(slug: string): Promise<VerdictResponse> {
     evidence: {
       historyEndpoint: "/v1/cryptocurrency/listings/historical",
       stateEndpoint:
-        state.source === "daily" ? "/v3/cryptocurrency/listings/latest" : "/v1/cryptocurrency/listings/historical",
+        state.source === "daily"
+          ? "/v1/cryptocurrency/listings/latest"
+          : "/v1/cryptocurrency/listings/historical",
       stateSnapshot: state.asOf.toISOString(),
       firstWeek: weeks[0],
       lastWeek,
@@ -203,7 +261,13 @@ export async function searchCoins(query: string): Promise<SearchHit[]> {
     })
     .from(coins)
     .leftJoin(currentState, eq(currentState.coinId, coins.id))
-    .where(or(eq(sql`lower(${coins.symbol})`, q), ilike(coins.name, prefix), ilike(coins.slug, prefix)))
+    .where(
+      or(
+        eq(sql`lower(${coins.symbol})`, q),
+        ilike(coins.name, prefix),
+        ilike(coins.slug, prefix),
+      ),
+    )
     .orderBy(
       desc(isNotNull(currentState.coinId)),
       desc(sql`lower(${coins.symbol}) = ${q}`),

@@ -18,13 +18,17 @@ function authorized(request: Request): boolean {
  * `Authorization: Bearer $CRON_SECRET`. The only route that calls CMC.
  */
 export async function GET(request: Request) {
-  if (!authorized(request)) return Response.json({ error: "unauthorized" }, { status: 401 });
+  if (!authorized(request))
+    return Response.json({ error: "unauthorized" }, { status: 401 });
   try {
     const result = await refreshCurrentState();
     revalidateTag("daily", "max");
     return Response.json({ ok: true, ...result });
   } catch (error) {
     console.error("daily refresh failed", error);
-    return Response.json({ ok: false, error: "refresh failed, see logs" }, { status: 500 });
+    return Response.json(
+      { ok: false, error: "refresh failed, see logs" },
+      { status: 500 },
+    );
   }
 }

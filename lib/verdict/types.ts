@@ -110,3 +110,15 @@ export interface SearchHit {
   live: boolean;
   excluded: boolean;
 }
+
+export interface Receipt {
+  endpoint: string;
+  requestUrl: string;
+  fetchedAt: string;
+  httpStatus: number;
+  creditCount: number | null;
+  /** CMC's own status block from that response (timestamp, credit count, elapsed). */
+  status: Record<string, unknown> | null;
+  /** This coin's row, exactly as CMC returned it. Null when the coin was not in the call. */
+  row: Record<string, unknown> | null;
+}
