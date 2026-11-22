@@ -30,13 +30,13 @@ export default function SearchPage({ searchParams }: PageProps<"/search">) {
 async function Results({ query }: { query: string }) {
   if (!query) return null;
   const hits = await searchCoins(query);
+  const q = query.toLowerCase();
   const exact = hits.filter(
-    (hit) =>
-      hit.symbol.toLowerCase() === query.toLowerCase() ||
-      hit.slug === query.toLowerCase(),
+    (hit) => hit.live && (hit.symbol.toLowerCase() === q || hit.slug === q),
   );
-  // One clear answer: go straight to it.
-  if (hits.length === 1 || (exact.length === 1 && exact[0].live))
+  // One clear answer: go straight to it. Never on one letter, which is
+  // nearly always a search still being typed.
+  if (q.length >= 2 && (hits.length === 1 || exact.length === 1))
     redirect(`/coin/${(exact[0] ?? hits[0]).slug}`);
 
   return (

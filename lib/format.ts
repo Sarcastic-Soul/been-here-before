@@ -23,9 +23,16 @@ export function pct(share: number, digits = 0): string {
   return `${value.toFixed(digits)}%`;
 }
 
-/** Wilson range as "4–16%". */
+/** One end of a range: whole percents, but a small non-zero share keeps a decimal. */
+function rangeEnd(share: number): string {
+  const value = share * 100;
+  if (value > 0 && value < 1) return value.toFixed(1);
+  return String(Math.round(value));
+}
+
+/** Wilson range as "4–16%". A tiny upper end reads "0–0.4%", never "0–0%". */
 export function pctRange(lo: number, hi: number): string {
-  return `${Math.round(lo * 100)}–${Math.round(hi * 100)}%`;
+  return `${rangeEnd(lo)}–${rangeEnd(hi)}%`;
 }
 
 /**

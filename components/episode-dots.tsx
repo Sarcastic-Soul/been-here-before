@@ -94,7 +94,7 @@ export function EpisodeDots({
                 key={key}
                 data-tip={tipFor(episode, outcome)}
                 data-twin={twin ? key : undefined}
-                className={`dot-in${twin ? "cursor-pointer" : ""}`}
+                className={twin ? "dot-in cursor-pointer" : "dot-in"}
                 style={{ "--d": `${Math.round(delay)}ms` } as CSSProperties}
               >
                 <rect

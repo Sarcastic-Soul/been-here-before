@@ -46,6 +46,17 @@ export const VERDICT_TEXT: Record<VerdictKind, string> = {
   no_clear_edge: "No clear edge",
 };
 
+/**
+ * The same verdicts in plain words, for headings people read first. The names
+ * above stay the official labels (API, MCP, ledger).
+ */
+export const VERDICT_PLAIN: Record<VerdictKind, string> = {
+  not_enough_history: "Not enough history to say",
+  rotate: "Most coins in this spot lost to BTC",
+  hold: "Most coins in this spot beat BTC",
+  no_clear_edge: "No clear edge either way against BTC",
+};
+
 export function summarize(episodes: readonly EpisodeOutcome[]): Summary {
   const rate = (hit: (e: EpisodeOutcome) => boolean) =>
     clusteredRate(episodes, hit, (e) => halfYear(e.week));

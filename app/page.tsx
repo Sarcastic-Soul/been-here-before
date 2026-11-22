@@ -8,6 +8,7 @@ import { TwinChart } from "@/components/twin-chart";
 import { VerdictSummary } from "@/components/verdict-summary";
 import { getCalibration } from "@/lib/calibration/get-calibration";
 import { count, monthYear, pct } from "@/lib/format";
+import { FAMOUS_CASES, thenHref } from "@/lib/verdict/cases";
 import { getPanelStats } from "@/lib/verdict/get-stats";
 import { getVerdictOrSaved } from "@/lib/verdict/saved";
 import { toTwinSeries } from "@/lib/verdict/twin-series";
@@ -19,11 +20,13 @@ const TRY = [
   ["algorand", "Algorand"],
   ["dogecoin", "Dogecoin"],
 ] as const;
+// A collapse, a fraud and a winner, so the replays do not all point one way.
+const HOME_CASES = ["terra-luna", "ftx-token", "solana"];
 
 export default function Home() {
   return (
     <>
-      <div className="mx-auto grid max-w-[1360px] gap-12 px-4 pt-10 pb-16 sm:px-8 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:px-12 lg:pt-14 lg:pb-20">
+      <div className="mx-auto grid max-w-[1360px] gap-12 px-4 pt-10 pb-16 sm:px-8 lg:grid-cols-[1.05fr_1fr] lg:grid-rows-[auto_1fr] lg:gap-x-16 lg:gap-y-14 lg:px-12 lg:pt-14 lg:pb-20">
         <section aria-labelledby="hero-title" className="rise">
           <h1
             id="hero-title"
@@ -55,12 +58,21 @@ export default function Home() {
 
         <section
           aria-label="Example: Filecoin today"
-          className="rise border-ink border-t-4 border-double pt-4 [--i:2]"
+          className="rise border-ink border-t-4 border-double pt-4 [--i:2] lg:col-start-2 lg:row-span-2 lg:row-start-1"
         >
           <Suspense fallback={<SheetSkeleton />}>
             <ExampleVerdict />
           </Suspense>
         </section>
+
+        <div className="rise grid content-start gap-10 [--i:3] lg:col-start-1 lg:row-start-2">
+          <Suspense
+            fallback={<div className="skeleton h-24 w-full max-w-[420px]" />}
+          >
+            <DeadCount />
+          </Suspense>
+          <BackInTime />
+        </div>
       </div>
 
       <section aria-labelledby="how-title" className="border-ink border-t">
@@ -141,6 +153,73 @@ async function ExampleVerdict() {
         Open the full Filecoin page <ArrowRight size={16} aria-hidden />
       </Link>
     </>
+  );
+}
+
+async function DeadCount() {
+  await connection();
+  const stats = await getPanelStats();
+  return (
+    <section aria-labelledby="dead-title" className="border-ink border-t pt-4">
+      <h2 id="dead-title" className="label mb-3">
+        Dead coins included
+      </h2>
+      <p className="m-0 flex flex-wrap items-end gap-x-5 gap-y-2">
+        <span className="font-serif text-[clamp(52px,5vw,68px)] leading-[0.85] tabular-nums">
+          {count(stats.gone)}
+        </span>
+        <span className="text-ink-body max-w-[22em] text-[15px]">
+          of the {count(stats.coins)} coins seen since{" "}
+          {monthYear(stats.firstWeek)} are no longer in the top 5,000. They stay
+          in the count: a coin that drops out is a total loss, not a gap.
+        </span>
+      </p>
+    </section>
+  );
+}
+
+function BackInTime() {
+  const cases = FAMOUS_CASES.filter((c) => HOME_CASES.includes(c.slug));
+  return (
+    <section aria-labelledby="back-title" className="border-ink border-t pt-4">
+      <h2 id="back-title" className="label mb-1">
+        Or go back in time
+      </h2>
+      <p className="text-ink-body mb-2 text-[15px]">
+        What would it have said that week, using only what was known then?
+      </p>
+      <ul>
+        {cases.map((c) => (
+          <li key={c.slug} className="border-rule border-b">
+            <Link
+              href={thenHref(c.slug, c.week)}
+              className="group hover:text-accent-text flex min-h-12 items-center justify-between gap-4 py-3"
+            >
+              <span>
+                <span className="font-medium">{c.name}</span>{" "}
+                <span className="num text-muted text-[13px]">
+                  {monthYear(c.week)}
+                </span>
+                <span className="text-ink-body block text-[14px]">
+                  {c.story}
+                </span>
+              </span>
+              <ArrowRight
+                size={16}
+                aria-hidden
+                className="shrink-0 transition-transform duration-150 group-hover:translate-x-0.5"
+              />
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <Link
+        href="/then"
+        className="link text-ink mt-2 inline-flex min-h-11 items-center text-sm"
+      >
+        All famous moments, or pick any week
+      </Link>
+    </section>
   );
 }
 

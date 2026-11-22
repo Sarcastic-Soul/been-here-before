@@ -63,6 +63,7 @@ describe("relativeToBtc", () => {
 describe("other helpers", () => {
   it("formats ranges, prices and sizes", () => {
     expect(pctRange(0.041, 0.157)).toBe("4–16%");
+    expect(pctRange(0, 0.004)).toBe("0–0.4%");
     expect(usd(65432.1)).toBe("$65,432");
     expect(usd(0.5339)).toBe("$0.5339");
     expect(compactUsd(2.3e9)).toBe("$2.3B");

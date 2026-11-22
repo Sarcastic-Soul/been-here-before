@@ -337,7 +337,7 @@ function Verdict({
               <span className="group-open:hidden">Show the table</span>
               <span className="hidden group-open:inline">Hide the table</span>
             </summary>
-            <div className="mt-5 max-h-[640px] overflow-y-auto">
+            <div className="mt-5">
               <EpisodeTable episodes={data.episodes} />
             </div>
           </details>

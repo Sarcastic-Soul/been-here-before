@@ -15,7 +15,7 @@ test("search a coin and read its verdict", async ({ page }) => {
   await expect(page).toHaveURL(/\/coin\/filecoin$/);
   const verdict = page.getByRole("heading", { level: 1 });
   await expect(verdict).toHaveText(
-    /History favors|No clear edge|Not enough history/,
+    /lost to BTC|beat BTC|No clear edge|Not enough history/,
   );
   // Next keeps the previous page mounted but hidden, so match visible text only.
   await expect(

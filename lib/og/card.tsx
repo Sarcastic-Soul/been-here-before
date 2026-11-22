@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 import { ImageResponse } from "next/og";
 
+import { VERDICT_PLAIN } from "@/lib/engine/verdict";
 import { count, drawdownPct, longDate, years } from "@/lib/format";
 import type { EpisodeRow, VerdictOk } from "@/lib/verdict/types";
 
@@ -178,7 +179,7 @@ export async function verdictCard(
             letterSpacing: "-0.015em",
           }}
         >
-          {refused ? "Not enough history to say." : `${data.verdictText}.`}
+          {`${VERDICT_PLAIN[data.verdict]}.`}
         </div>
         {refused ? (
           <div style={{ fontSize: 28, color: BODY, marginTop: 28 }}>

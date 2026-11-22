@@ -454,8 +454,12 @@ export async function searchCoins(query: string): Promise<SearchHit[]> {
     )
     .orderBy(
       desc(isNotNull(currentState.coinId)),
-      desc(sql`lower(${coins.symbol}) = ${q}`),
+      // One letter is too short for an exact symbol to mean much ("b" is a
+      // rank-152 coin), so short queries go by rank alone.
+      ...(q.length >= 2 ? [desc(sql`lower(${coins.symbol}) = ${q}`)] : []),
       asc(sql`coalesce(${currentState.rankAdj}, 32767)`),
+      // Among coins that are gone, the ones that lasted longest come first.
+      desc(sql`${coins.lastWeek} - ${coins.firstWeek}`),
       desc(coins.lastWeek),
     )
     .limit(10);

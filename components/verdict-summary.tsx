@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 
-import { MIN_EPISODES } from "@/lib/engine/verdict";
+import { MIN_EPISODES, VERDICT_PLAIN } from "@/lib/engine/verdict";
 import { dotTimeline } from "@/lib/motion";
 import {
   count,
@@ -46,8 +46,15 @@ export function VerdictSummary({
         <span className="num">as of {longDate(state.asOf)}</span>
       </div>
 
-      <Heading className="mt-5 mb-1 font-serif text-[clamp(30px,3.4vw,42px)] leading-[1.08] font-normal tracking-[-0.015em]">
-        {refused ? "Not enough history to say." : `${data.verdictText}.`}
+      {!refused && (
+        <p className="label mt-5 mb-0">
+          Verdict <span className="text-accent-text">{data.verdictText}</span>
+        </p>
+      )}
+      <Heading
+        className={`${refused ? "mt-5" : "mt-1.5"} mb-1 font-serif text-[clamp(30px,3.4vw,42px)] leading-[1.08] font-normal tracking-[-0.015em] text-balance`}
+      >
+        {VERDICT_PLAIN[verdict]}.
       </Heading>
 
       {refused ? (
