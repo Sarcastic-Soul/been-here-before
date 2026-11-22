@@ -9,6 +9,7 @@ import { EpisodeTable } from "@/components/episode-table";
 import { LineSwatch } from "@/components/line-swatch";
 import { RateBar } from "@/components/rate-bar";
 import { Section } from "@/components/section";
+import { ShareButton } from "@/components/share-button";
 import { ReceiptDrawer } from "@/components/receipt-drawer";
 import { TwinChart } from "@/components/twin-chart";
 import { VerdictSummary } from "@/components/verdict-summary";
@@ -31,6 +32,7 @@ import { addWeeks } from "@/lib/verdict/analyze";
 import { FIRST_REPLAY_WEEK, thenHref } from "@/lib/verdict/cases";
 import { getReceipt } from "@/lib/verdict/get-receipt";
 import { getVerdictOrSaved } from "@/lib/verdict/saved";
+import { shareMeta } from "@/lib/site";
 import { twinLineStyle } from "@/lib/twin-style";
 import { toTwinSeries } from "@/lib/verdict/twin-series";
 import type { VerdictOk, VerdictRefused } from "@/lib/verdict/types";
@@ -47,15 +49,19 @@ export async function generateMetadata({
     return { title: `Moved to ${data.movedTo.name}` };
   if (!data.coin) return { title: "Coin not found" };
   if (data.status !== "ok") return { title: data.coin.name };
+  const path = `/coin/${data.coin.slug}`;
+  const title = `${data.coin.name}: ${data.verdictText}`;
   if (data.verdict === "not_enough_history")
-    return {
-      title: `${data.coin.name}: ${data.verdictText}`,
-      description: `Only ${data.summary.n} past coins stood in ${data.coin.name}'s spot, too few for a verdict. See the closest twins and how they did against BTC.`,
-    };
-  return {
-    title: `${data.coin.name}: ${data.verdictText}`,
-    description: `${data.summary.beatBtc.k} of ${data.summary.n} past coins in ${data.coin.name}'s spot beat holding BTC over 2 years (${pct(data.summary.beatBtc.p)}, 95% range ${pctRange(data.summary.beatBtc.lo, data.summary.beatBtc.hi)}).`,
-  };
+    return shareMeta(
+      title,
+      `Only ${data.summary.n} past coins stood in ${data.coin.name}'s spot, too few for a verdict. See the closest twins and how they did against BTC.`,
+      path,
+    );
+  return shareMeta(
+    title,
+    `${data.summary.beatBtc.k} of ${data.summary.n} past coins in ${data.coin.name}'s spot beat holding BTC over 2 years (${pct(data.summary.beatBtc.p)}, 95% range ${pctRange(data.summary.beatBtc.lo, data.summary.beatBtc.hi)}).`,
+    path,
+  );
 }
 
 export default function CoinPage({ params }: PageProps<"/coin/[slug]">) {
@@ -137,6 +143,10 @@ function Verdict({
                 symbol: t.episode.symbol,
                 start: t.episode.week,
               }))}
+            />
+            <ShareButton
+              path={`/coin/${coin.slug}`}
+              title={`${coin.name}: ${data.verdictText}`}
             />
             <span className="text-muted text-[13px]">
               {state.priceUsd !== null && <>Price {usd(state.priceUsd)} · </>}

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Newsreader } from "next/font/google";
 import Link from "next/link";
 
+import { SITE, SITE_NAME } from "@/lib/site";
+
 import "./globals.css";
 
 const newsreader = Newsreader({
@@ -23,10 +25,21 @@ const plexMono = IBM_Plex_Mono({
   weight: ["400", "500"],
 });
 
+const DESCRIPTION =
+  "Type a coin. See every past coin that stood in the same spot, back to 2013 with dead coins included, and how many beat holding BTC over the next two years. Built on CoinMarketCap data.";
+
 export const metadata: Metadata = {
-  title: { default: "Been Here Before", template: "%s · Been Here Before" },
-  description:
-    "Type a coin. See every past coin that stood in the same spot, back to 2013 with dead coins included, and how many beat holding BTC over the next two years. Built on CoinMarketCap data.",
+  metadataBase: new URL(SITE),
+  title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
+  description: DESCRIPTION,
+  openGraph: {
+    title: SITE_NAME,
+    description: DESCRIPTION,
+    siteName: SITE_NAME,
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

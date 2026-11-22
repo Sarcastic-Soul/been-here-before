@@ -10,11 +10,13 @@ import { Suspense } from "react";
 
 import { CycleTable, PhaseTable } from "@/components/cycle-table";
 import { Section } from "@/components/section";
+import { ShareButton } from "@/components/share-button";
 import { TwinChart } from "@/components/twin-chart";
 import { VerdictSummary } from "@/components/verdict-summary";
 import { hasWinnerSplit, WinnersTable } from "@/components/winners-table";
 import { PHASES } from "@/lib/engine/cycles";
 import { count, longDate, pct, relativeToBtc, signedPct } from "@/lib/format";
+import { shareMeta } from "@/lib/site";
 import { thenHref } from "@/lib/verdict/cases";
 import {
   getPastVerdict,
@@ -40,10 +42,11 @@ export async function generateMetadata({
   if (data.status !== "ok")
     return { title: `${data.coin?.name ?? "Coin"} on ${longDate(week)}` };
   const { verdict, actual } = data;
-  return {
-    title: `${verdict.coin.name} on ${longDate(data.asOf)}: ${verdict.verdictText}`,
-    description: `What Been Here Before would have said about ${verdict.coin.name} in the week of ${longDate(data.asOf)}, using only history known then${actual.ret104w !== null ? `, and what really happened: ${signedPct(actual.ret104w)} over the next 2 years` : ""}.`,
-  };
+  return shareMeta(
+    `${verdict.coin.name} on ${longDate(data.asOf)}: ${verdict.verdictText}`,
+    `What Been Here Before would have said about ${verdict.coin.name} in the week of ${longDate(data.asOf)}, using only history known then${actual.ret104w !== null ? `, and what really happened: ${signedPct(actual.ret104w)} over the next 2 years` : ""}.`,
+    thenHref(verdict.coin.slug, data.asOf),
+  );
 }
 
 export default function ThenPage({ params }: PageProps<"/then/[slug]/[week]">) {
@@ -109,13 +112,21 @@ function Replay({ data }: { data: PastOk }) {
 
   return (
     <article className="appear mx-auto max-w-[1360px] px-4 sm:px-8 lg:px-12">
-      <p className="text-muted pt-8 text-[13px]">
-        <Link href="/then" className="link text-ink">
-          Time machine
-        </Link>{" "}
-        · replayed with only the history known in the week of{" "}
-        {longDate(data.asOf)}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 pt-8">
+        <p className="text-muted text-[13px]">
+          <Link href="/then" className="link text-ink">
+            Time machine
+          </Link>{" "}
+          · replayed with only the history known in the week of{" "}
+          {longDate(data.asOf)}
+        </p>
+        <div className="flex items-center gap-3">
+          <ShareButton
+            path={thenHref(coin.slug, data.asOf)}
+            title={`${coin.name} on ${longDate(data.asOf)}: ${verdict.verdictText}`}
+          />
+        </div>
+      </div>
       <div className="grid gap-10 pt-6 pb-12 lg:grid-cols-[1.35fr_1fr] lg:gap-16">
         <div className="rise">
           <VerdictSummary data={verdict} />

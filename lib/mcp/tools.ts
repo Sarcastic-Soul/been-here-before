@@ -7,9 +7,10 @@ import { snapToSunday } from "@/lib/verdict/analyze";
 import { getPastVerdict } from "@/lib/verdict/get-past-verdict";
 import { searchCoins } from "@/lib/verdict/get-verdict";
 import { getVerdictOrSaved } from "@/lib/verdict/saved";
+import { SITE } from "@/lib/site";
 import type { VerdictOk, VerdictRefused } from "@/lib/verdict/types";
 
-export const SITE = "https://been-here-before.vercel.app";
+export { SITE };
 
 const NOTE =
   "This is a historical base rate, not a forecast and not financial advice.";
