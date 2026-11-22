@@ -18,7 +18,8 @@ export interface CoinState {
   source: "weekly" | "daily";
   rankAdj: number;
   rankRaw: number;
-  priceUsd: number;
+  /** Null in the saved copies under public/precomputed/, which keep derived statistics only. */
+  priceUsd: number | null;
   marketCapUsd: number | null;
   drawdown: number;
   weeksSincePeak: number;

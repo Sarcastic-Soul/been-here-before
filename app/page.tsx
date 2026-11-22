@@ -9,7 +9,7 @@ import { VerdictSummary } from "@/components/verdict-summary";
 import { getCalibration } from "@/lib/calibration/get-calibration";
 import { count, monthYear, pct } from "@/lib/format";
 import { getPanelStats } from "@/lib/verdict/get-stats";
-import { getVerdict } from "@/lib/verdict/get-verdict";
+import { getVerdictOrSaved } from "@/lib/verdict/saved";
 import { toTwinSeries } from "@/lib/verdict/twin-series";
 
 const EXAMPLE_SLUG = "filecoin";
@@ -120,7 +120,7 @@ export default function Home() {
 
 async function ExampleVerdict() {
   await connection();
-  const data = await getVerdict(EXAMPLE_SLUG);
+  const { data } = await getVerdictOrSaved(EXAMPLE_SLUG);
   if (data.status !== "ok")
     return (
       <p className="text-muted">The example is not available right now.</p>

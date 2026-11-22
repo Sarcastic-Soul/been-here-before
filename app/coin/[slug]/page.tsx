@@ -23,7 +23,7 @@ import {
   usd,
 } from "@/lib/format";
 import { getReceipt } from "@/lib/verdict/get-receipt";
-import { getVerdict } from "@/lib/verdict/get-verdict";
+import { getVerdictOrSaved } from "@/lib/verdict/saved";
 import { toTwinSeries } from "@/lib/verdict/twin-series";
 import type { VerdictOk, VerdictRefused } from "@/lib/verdict/types";
 
@@ -34,7 +34,7 @@ export async function generateMetadata({
 }: PageProps<"/coin/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   if (!SLUG.test(slug)) return { title: "Coin not found" };
-  const data = await getVerdict(slug);
+  const { data } = await getVerdictOrSaved(slug);
   if (!data.coin) return { title: "Coin not found" };
   if (data.status !== "ok") return { title: data.coin.name };
   return {
@@ -55,11 +55,24 @@ export default function CoinPage({ params }: PageProps<"/coin/[slug]">) {
 
 async function CoinVerdict({ slug }: { slug: string }) {
   if (!SLUG.test(slug)) notFound();
-  const data = await getVerdict(slug);
+  const { data, savedAt } = await getVerdictOrSaved(slug);
   if (data.status === "not_found") notFound();
   if (data.status !== "ok") return <Refused data={data} />;
-  const receipt = await getReceipt(data.coin.id);
-  return <Verdict data={data} receipt={receipt} />;
+  // A saved copy means the database is down, so do not ask it for the receipt.
+  const receipt = savedAt ? null : await getReceipt(data.coin.id);
+  return <Verdict data={data} receipt={receipt} savedAt={savedAt} />;
+}
+
+function SavedBanner({ savedAt }: { savedAt: string }) {
+  return (
+    <p
+      role="status"
+      className="border-accent text-ink-body mt-6 border-l-2 pl-4 text-sm"
+    >
+      The live database did not answer, so this is a saved copy from{" "}
+      {longDate(savedAt)}. The numbers are the same kind, just not today&apos;s.
+    </p>
+  );
 }
 
 function Section({
@@ -92,9 +105,11 @@ function Section({
 function Verdict({
   data,
   receipt,
+  savedAt,
 }: {
   data: VerdictOk;
   receipt: Awaited<ReturnType<typeof getReceipt>>;
+  savedAt: string | null;
 }) {
   const { summary, state, coin } = data;
   const relatives = data.episodes
@@ -109,6 +124,7 @@ function Verdict({
 
   return (
     <article className="mx-auto max-w-[1360px] px-4 sm:px-8 lg:px-12">
+      {savedAt && <SavedBanner savedAt={savedAt} />}
       <div className="grid gap-10 pt-10 pb-12 lg:grid-cols-[1.35fr_1fr] lg:gap-16 lg:pt-12">
         <div className="rise">
           <VerdictSummary data={data} />
@@ -121,6 +137,7 @@ function Verdict({
               coinName={coin.name}
               evidence={data.evidence}
               receipt={receipt}
+              saved={savedAt !== null}
               twins={data.twins.map((t) => ({
                 name: t.episode.name,
                 symbol: t.episode.symbol,
@@ -128,8 +145,8 @@ function Verdict({
               }))}
             />
             <span className="text-muted text-[13px]">
-              Price {usd(state.priceUsd)} · peak {state.weeksSincePeak} weeks
-              ago
+              {state.priceUsd !== null && <>Price {usd(state.priceUsd)} · </>}
+              peak {state.weeksSincePeak} weeks ago
             </span>
           </div>
 

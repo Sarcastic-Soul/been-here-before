@@ -1,0 +1,186 @@
+{
+  "savedAt": "2026-11-22T14:46:35.501Z",
+  "note": "Derived statistics from weekly CoinMarketCap snapshots, saved by scripts/precompute.ts as a fallback. Data provided by CoinMarketCap.com. Not financial advice.",
+  "coins": [
+    {
+      "slug": "ethereum",
+      "name": "Ethereum",
+      "verdict": "Not enough history",
+      "n": 2
+    },
+    {
+      "slug": "xrp",
+      "name": "XRP",
+      "verdict": "Not enough history",
+      "n": 7
+    },
+    {
+      "slug": "bnb",
+      "name": "BNB",
+      "verdict": "Not enough history",
+      "n": 8
+    },
+    {
+      "slug": "solana",
+      "name": "Solana",
+      "verdict": "Not enough history",
+      "n": 12
+    },
+    {
+      "slug": "dogecoin",
+      "name": "Dogecoin",
+      "verdict": "History favors rotating to BTC",
+      "n": 20
+    },
+    {
+      "slug": "cardano",
+      "name": "Cardano",
+      "verdict": "Not enough history",
+      "n": 17
+    },
+    {
+      "slug": "tron",
+      "name": "TRON",
+      "verdict": "Not enough history",
+      "n": 8
+    },
+    {
+      "slug": "chainlink",
+      "name": "Chainlink",
+      "verdict": "History favors rotating to BTC",
+      "n": 24
+    },
+    {
+      "slug": "avalanche",
+      "name": "Avalanche",
+      "verdict": "No clear edge",
+      "n": 28
+    },
+    {
+      "slug": "stellar",
+      "name": "Stellar",
+      "verdict": "History favors rotating to BTC",
+      "n": 25
+    },
+    {
+      "slug": "sui",
+      "name": "Sui",
+      "verdict": "History favors rotating to BTC",
+      "n": 43
+    },
+    {
+      "slug": "hedera",
+      "name": "Hedera",
+      "verdict": "History favors rotating to BTC",
+      "n": 41
+    },
+    {
+      "slug": "bitcoin-cash",
+      "name": "Bitcoin Cash",
+      "verdict": "History favors rotating to BTC",
+      "n": 20
+    },
+    {
+      "slug": "litecoin",
+      "name": "Litecoin",
+      "verdict": "History favors rotating to BTC",
+      "n": 28
+    },
+    {
+      "slug": "shiba-inu",
+      "name": "Shiba Inu",
+      "verdict": "History favors rotating to BTC",
+      "n": 41
+    },
+    {
+      "slug": "polkadot-new",
+      "name": "Polkadot",
+      "verdict": "History favors rotating to BTC",
+      "n": 47
+    },
+    {
+      "slug": "uniswap",
+      "name": "Uniswap",
+      "verdict": "History favors rotating to BTC",
+      "n": 39
+    },
+    {
+      "slug": "near-protocol",
+      "name": "NEAR Protocol",
+      "verdict": "History favors rotating to BTC",
+      "n": 33
+    },
+    {
+      "slug": "aptos",
+      "name": "Aptos",
+      "verdict": "History favors rotating to BTC",
+      "n": 103
+    },
+    {
+      "slug": "internet-computer",
+      "name": "Internet Computer",
+      "verdict": "History favors rotating to BTC",
+      "n": 49
+    },
+    {
+      "slug": "ethereum-classic",
+      "name": "Ethereum Classic",
+      "verdict": "History favors rotating to BTC",
+      "n": 68
+    },
+    {
+      "slug": "pepe",
+      "name": "Pepe",
+      "verdict": "History favors rotating to BTC",
+      "n": 99
+    },
+    {
+      "slug": "monero",
+      "name": "Monero",
+      "verdict": "Not enough history",
+      "n": 5
+    },
+    {
+      "slug": "cosmos",
+      "name": "Cosmos",
+      "verdict": "History favors rotating to BTC",
+      "n": 81
+    },
+    {
+      "slug": "filecoin",
+      "name": "Filecoin",
+      "verdict": "History favors rotating to BTC",
+      "n": 85
+    },
+    {
+      "slug": "algorand",
+      "name": "Algorand",
+      "verdict": "History favors rotating to BTC",
+      "n": 78
+    },
+    {
+      "slug": "arbitrum",
+      "name": "Arbitrum",
+      "verdict": "History favors rotating to BTC",
+      "n": 160
+    },
+    {
+      "slug": "render",
+      "name": "Render",
+      "verdict": "History favors rotating to BTC",
+      "n": 95
+    },
+    {
+      "slug": "tezos",
+      "name": "Tezos",
+      "verdict": "History favors rotating to BTC",
+      "n": 128
+    },
+    {
+      "slug": "the-sandbox",
+      "name": "The Sandbox",
+      "verdict": "History favors rotating to BTC",
+      "n": 174
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { getVerdict } from "@/lib/verdict/get-verdict";
+import { getVerdictOrSaved } from "@/lib/verdict/saved";
 
 const Query = z.object({ slug: z.string().regex(/^[a-z0-9-]{1,100}$/) });
 
@@ -14,8 +14,19 @@ export async function GET(request: Request) {
       { status: 400 },
     );
   }
-  const result = await getVerdict(parsed.data.slug);
-  return Response.json(result, {
-    status: result.status === "not_found" ? 404 : 200,
+  let result: Awaited<ReturnType<typeof getVerdictOrSaved>>;
+  try {
+    result = await getVerdictOrSaved(parsed.data.slug);
+  } catch (error) {
+    console.error(`verdict for ${parsed.data.slug} failed`, error);
+    return Response.json(
+      { error: "The database did not answer and no saved copy exists." },
+      { status: 503 },
+    );
+  }
+  const { data, savedAt } = result;
+  // savedAt appears only when the database was down and a saved copy was served.
+  return Response.json(savedAt ? { ...data, savedAt } : data, {
+    status: data.status === "not_found" ? 404 : 200,
   });
 }

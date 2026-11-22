@@ -26,12 +26,15 @@ export function ReceiptDrawer({
   coinName,
   evidence,
   receipt,
+  saved = false,
   twins,
 }: {
   slug: string;
   coinName: string;
   evidence: Evidence;
   receipt: Receipt | null;
+  /** True when the page shows a saved copy because the database did not answer. */
+  saved?: boolean;
   twins: ReceiptTwin[];
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -113,6 +116,11 @@ export function ReceiptDrawer({
                     </p>
                   )}
                 </>
+              ) : saved ? (
+                <p className="text-muted">
+                  The daily call is stored in the database, which did not
+                  answer, so it cannot be shown with this saved copy.
+                </p>
               ) : (
                 <p className="text-muted">
                   No daily call stored yet. Today’s state comes from the last

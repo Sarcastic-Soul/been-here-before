@@ -24,7 +24,8 @@
     "data:pull:map": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/pull-map.ts",
     "data:pull:global": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/pull-global.ts",
     "data:build": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/build-panel.ts && tsx --env-file-if-exists=.env.local --conditions=react-server scripts/load.ts",
-    "data:calibrate": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/calibrate.ts"
+    "data:calibrate": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/calibrate.ts",
+    "data:precompute": "tsx scripts/precompute.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "1.2.1",
