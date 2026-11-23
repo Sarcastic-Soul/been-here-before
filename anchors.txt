@@ -2,3 +2,4 @@
 # Written by .github/workflows/ledger-anchor.yml on main. Lines are only ever added.
 # day count root
 2026-11-22 99 1ccba22e41b99b2b2a93939db45ff8ff17498de84459aebdb53e7893b2066c3a
+2026-11-23 99 a2f9f10f64452cb49aabef604f6c49678f5bbd3d5e5447e448d3f5e2f958add4
